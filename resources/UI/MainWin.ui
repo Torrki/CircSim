@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+	<object class="GtkWindow" id="RootWindow">
+		<property name="title">CircSim</property>
+		<property name="resizable">TRUE</property>
+		<child>
+			<object class="GtkBox">
+			
+				<child>				
+					<object class="GtkBox" id="MenuItems">
+						<property name="orientation">1</property>
+						<property name="halign">1</property>
+						<property name="width-request">60</property>
+						<property name="spacing">2</property>
+						
+						<child>
+							<object class="GtkButton" id="ResistorButton">
+								<property name="height-request">60</property>
+								<property name="child">
+									<object class="GtkImage">
+										<property name="file">./resources/imgs/resistor_icon.png</property>
+									</object>
+								</property>
+							</object>
+						</child>
+						<child>
+							<object class="GtkButton" id="CapacitorButton">
+								<property name="height-request">60</property>
+								<property name="child">
+									<object class="GtkImage">
+										<property name="file">./resources/imgs/capacitor_icon.png</property>
+									</object>
+								</property>
+							</object>
+						</child>
+						<child>
+							<object class="GtkButton" id="InductorButton">
+								<property name="height-request">60</property>
+								<property name="child">
+									<object class="GtkImage">
+										<property name="file">./resources/imgs/inductor_icon.png</property>
+									</object>
+								</property>
+							</object>
+						</child>
+					</object>
+				</child>
+				<child>
+					<object class="GtkSeparator">
+						<property name="orientation">1</property>
+					</object>
+				</child>
+				<child>
+					<object class="GtkDrawingArea" id="DrawSheet">
+						<property name="content-width">500</property>
+						<property name="content-height">460</property>
+					</object>
+				</child>
+				
+			</object>
+		</child>
+	</object>
+</interface>
