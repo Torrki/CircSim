@@ -9,7 +9,8 @@ CFLAGS_GTK4 = $(shell pkg-config --cflags gtk4)
 LIBS_GTK4 = $(shell pkg-config --libs gtk4)
 SRCS = $(shell find | grep .cpp)
 BIN = CircSim
+MY_DIRS = -I. -I./CircObjects -I./drawable
 
 all:
-	g++ -I. -I./CircObjects $(CFLAGS_GTK4) $(SRCS) -o $(BIN) $(LIBS_GTK4)
+	g++ $(MY_DIRS) $(CFLAGS_GTK4) $(SRCS) -o $(BIN) $(LIBS_GTK4)
 	
