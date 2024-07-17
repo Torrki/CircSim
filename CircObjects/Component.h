@@ -1,10 +1,27 @@
 #pragma once
 #include <gtk/gtk.h>
+#include <list>
 #include "IDrawable.h"
 
+#define HOTPOINT_EDGE 18
+
+class Hotpoint : public PointInt{
+	cairo_region_t* region;
+public:
+	Hotpoint(int x, int y);
+	int GetX(){return this->x;};
+	int GetY(){return this->y;};
+	cairo_region_t* GetRegion(){return this->region;};
+	bool HotpointOn(int x, int y);
+};
+
 class Component: public SurfaceDND{
+protected:
+	std::list<Hotpoint> hotpoints;
 public:
 	Component(const char *path_symbol, double xi, double yi);
+	Hotpoint* HotpointOver(double x, double y);
+	void Drag(double x, double y);
 };
 
 class Resistor: public Component{
