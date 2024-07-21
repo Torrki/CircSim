@@ -6,9 +6,11 @@
 #define HOTPOINT_EDGE 18
 
 class Hotpoint : public PointInt{
+protected:
 	cairo_region_t* region;
 public:
-	Hotpoint(int x, int y);
+	Hotpoint(int x, int y, int dim_bound);
+	~Hotpoint();
 	int GetX(){return this->x;};
 	int GetY(){return this->y;};
 	cairo_region_t* GetRegion(){return this->region;};
@@ -17,28 +19,29 @@ public:
 
 class Component: public SurfaceDND{
 protected:
-	std::list<Hotpoint> hotpoints;
+	std::list<Hotpoint*> hotpoints;
 public:
-	Component(const char *path_symbol, double xi, double yi);
-	Hotpoint* HotpointOver(double x, double y);
-	void Drag(double x, double y);
+	Component(const char *path_symbol, int xi, int yi);
+	~Component();
+	Hotpoint* HotpointOver(int x, int y);
+	void Drag(int x, int y);
 };
 
 class Resistor: public Component{
 public:
 	float Value;
-	Resistor(double xi, double yi, float ohm);
+	Resistor(int xi, int yi, float ohm);
 };
 
 class Capacitor: public Component{
 public:
 	float Value;
-	Capacitor(double xi, double yi, float fahrad);
+	Capacitor(int xi, int yi, float fahrad);
 };
 
 class Inductor: public Component{
 public:
 	float Value;
-	Inductor(double xi, double yi, float henry);
+	Inductor(int xi, int yi, float henry);
 };
 
