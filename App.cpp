@@ -1,6 +1,5 @@
 #include <list>
 #include "Component.h"
-#include "Line.h"
 #include "App.h"
 
 struct {
@@ -31,7 +30,9 @@ gboolean DwaKeyPressed(GtkEventControllerKey *self, guint keyval, guint keycode,
 void LinePreview(cairo_t *cr);
 
 void InitApp(GtkApplication *self, gpointer user_data){
+	/*Inizializzazione widget della finestra e bind delle azioni*/
 	AppCtx.CurrentPosition=new PointInt();
+	//g_print("Up: %d\nDown: %d\nLeft: %d\nRight: %d\n", (int)Direction::Up, (int)Direction::Down, (int)Direction::Left, (int)Direction::Right);
 	
 	GtkBuilder *builder=gtk_builder_new_from_file("./resources/UI/MainWin.ui");
 	GtkWindow *Root=GTK_WINDOW(gtk_builder_get_object(builder, "RootWindow"));
@@ -68,7 +69,6 @@ void DrawSheet(GtkDrawingArea* self, cairo_t *cr, int width, int height, gpointe
 	for(std::list<Connection*>::iterator it=AppCtx.Connessioni.begin(); it != AppCtx.Connessioni.end(); it++){
 		(*it)->Draw(cr);
 	}
-	//Stampa della linea che sto creando
 	if(AppCtx.DrawLine)
 		LinePreview(cr);
 	cairo_stroke(cr);
@@ -78,9 +78,9 @@ void DrawSheet(GtkDrawingArea* self, cairo_t *cr, int width, int height, gpointe
 	for(std::list<HotpointDrawable*>::iterator it=AppCtx.HotpointLinee.begin(); it != AppCtx.HotpointLinee.end(); it++){
 		(*it)->Draw(cr);
 	}
-	
 	if(AppCtx.DrawHotpoint){
-		AppCtx.drawingHotpoint->Draw(cr);
+		cairo_move_to(cr, AppCtx.CurrentPosition->x, AppCtx.CurrentPosition->y);
+		cairo_arc(cr, AppCtx.CurrentPosition->x, AppCtx.CurrentPosition->y, HOTPOINT_RADIUS, 0.0, 2*M_PI);
 	}
 	cairo_fill(cr);
 	
@@ -112,10 +112,11 @@ void LButton_clicked(GtkButton* self, gpointer user_data){
 void HPButton_clicked(GtkButton* self, gpointer user_data){
 	/*Aggiunge un hotpoint alle linee dello schema*/
 	AppCtx.DrawHotpoint=TRUE;
-	AppCtx.drawingHotpoint=new HotpointDrawable(AppCtx.CurrentPosition->x, AppCtx.CurrentPosition->y);
+	//AppCtx.drawingHotpoint=new HotpointDrawable(AppCtx.CurrentPosition->x, AppCtx.CurrentPosition->y);
 }
 
 void DwaMotion(GtkEventControllerMotion* self, gdouble x, gdouble y, gpointer user_data){
+	/*Aggiorno sempre la posizione corrente, disegno solo quando c'è una azione di disegno*/
 	AppCtx.CurrentPosition->x=(int)x;
 	AppCtx.CurrentPosition->y=(int)y;
 	if(AppCtx.DragComponent){
@@ -124,17 +125,17 @@ void DwaMotion(GtkEventControllerMotion* self, gdouble x, gdouble y, gpointer us
 	}else if(AppCtx.DrawLine){
 		gtk_widget_queue_draw(GTK_WIDGET(AppCtx.Dwa));
 	}else if(AppCtx.DrawHotpoint){
-		int a, b;
-		AppCtx.drawingHotpoint->Drag(x,y, &a, &b);
 		gtk_widget_queue_draw(GTK_WIDGET(AppCtx.Dwa));
 	}
 }
 
 void DwaClick(GtkGestureClick* self, gint n_press, gdouble x, gdouble y, gpointer user_data){
+
+	/*Ciclo sui componenti per vedere se posso eseguire una azione su di essi*/
 	for(std::list<Component*>::iterator it=AppCtx.Componenti.begin(); !AppCtx.DrawHotpoint && it != AppCtx.Componenti.end(); it++){
 		if((*it)->PointerOn(x, y)){
 			AppCtx.LastSelected=*it;
-			Hotpoint *hp=(*it)->HotpointOver(x, y);
+			Hotpoint *hp=(*it)->HotpointOver(x, y); //Se disegno o termino una connessione
 			if(hp){
 				AppCtx.DrawLine = !AppCtx.DrawLine;
 				if(AppCtx.DrawLine){
@@ -142,21 +143,22 @@ void DwaClick(GtkGestureClick* self, gint n_press, gdouble x, gdouble y, gpointe
 					AppCtx.buildingConnection=new Connection(*it, hp);
 				}else{
 					//Aggiunta della nuova connessione alla lista
-					AppCtx.buildingConnection->EndConnection(*it, hp);					
+					AppCtx.buildingConnection->EndConnection(*it, hp);
 					AppCtx.Connessioni.push_back(AppCtx.buildingConnection);
 				}
 				gtk_widget_queue_draw(GTK_WIDGET(AppCtx.Dwa));
 				return;
 			}
-			else{
+			else{	//DND
 				AppCtx.DragComponent = AppCtx.DrawLine | AppCtx.DrawHotpoint ? FALSE : TRUE;
 			}
 			break;
 		}
 	}
 	
+	/*Ciclo sugli hotpoint disegnabili per vedere se posso eseguire una azione su di essi*/
 	for(std::list<HotpointDrawable*>::iterator it=AppCtx.HotpointLinee.begin(); !AppCtx.DrawHotpoint && it != AppCtx.HotpointLinee.end(); it++){
-		if((*it)->HotpointOn(x, y)){
+		if((*it)->HotpointOn(x, y)){ //Inizio o termino una connessione
 			Hotpoint *hp=dynamic_cast<Hotpoint*>(*it);
 			AppCtx.DrawLine = !AppCtx.DrawLine;
 			if(AppCtx.DrawLine){
@@ -164,7 +166,7 @@ void DwaClick(GtkGestureClick* self, gint n_press, gdouble x, gdouble y, gpointe
 				AppCtx.buildingConnection=new Connection(NULL, hp);
 			}else{
 				//Aggiunta della nuova connessione alla lista
-				AppCtx.buildingConnection->EndConnection(NULL, hp);					
+				AppCtx.buildingConnection->EndConnection(NULL, hp);
 				AppCtx.Connessioni.push_back(AppCtx.buildingConnection);
 			}
 			gtk_widget_queue_draw(GTK_WIDGET(AppCtx.Dwa));
@@ -172,29 +174,30 @@ void DwaClick(GtkGestureClick* self, gint n_press, gdouble x, gdouble y, gpointe
 		}
 	}
 	
-	if(AppCtx.DrawLine){
+	if(AppCtx.DrawLine){ //Punti intermedi del disegno delle nuove connessioni
 		PointInt *current= new PointInt();
 		current->x=(int)x;
 		current->y=(int)y;
 		AppCtx.buildingConnection->AppendPoint(current);
 		AppCtx.StartLine=current;
-	}else if(AppCtx.DrawHotpoint){
+	}else if(AppCtx.DrawHotpoint){ //Se sto piazzando un nuovo hotpoint su una linea
 		for(std::list<Connection*>::iterator it=AppCtx.Connessioni.begin(); it != AppCtx.Connessioni.end(); it++){
 			Line* l=(*it)->PointerOn(x, y);
 			if(l){
 				//attrazione verso la linea
-				if(l->GetDirection() == Direction::Up || l->GetDirection() == Direction::Down)
-					AppCtx.drawingHotpoint->Drag(l->GetStart()->x, y, NULL, NULL);
+				HotpointDrawable* newHD;
+				if(l->GetDirection() == DIR_UP || l->GetDirection() == DIR_DOWN)
+					newHD=new HotpointDrawable(l->GetStart()->x, y, DIR_LEFT | DIR_RIGHT);
 				else
-					AppCtx.drawingHotpoint->Drag(x, l->GetStart()->y, NULL, NULL);
+					newHD=new HotpointDrawable(x, l->GetStart()->y, DIR_UP | DIR_DOWN);
 					
 				//split della linea
-				PointInt *np= dynamic_cast<PointInt*>(AppCtx.drawingHotpoint);
+				PointInt *np= dynamic_cast<PointInt*>(newHD);
 				Line *firstPart= new Line(l->GetStart(), np);
 				Line *secondPart= new Line(np, l->GetEnd());
 				
 				//creazione della nuova connessione, dalla fine fino al nuovo punto
-				Connection* c=new Connection(NULL, dynamic_cast<Hotpoint*>(AppCtx.drawingHotpoint));
+				Connection* c=new Connection(NULL, dynamic_cast<Hotpoint*>(newHD));
 				Line* tmp=(*it)->GetPath()->back();
 				while(tmp != l){	//passo tutte le linee nella nuova connessione
 					c->AddLine(tmp, true);
@@ -205,8 +208,7 @@ void DwaClick(GtkGestureClick* self, gint n_press, gdouble x, gdouble y, gpointe
 				(*it)->GetPath()->pop_back();
 				(*it)->AddLine(firstPart, false);
 				
-				AppCtx.HotpointLinee.push_back(AppCtx.drawingHotpoint);
-				AppCtx.drawingHotpoint=new HotpointDrawable(x, y);
+				AppCtx.HotpointLinee.push_back(newHD);
 				AppCtx.Connessioni.push_back(c);
 				
 				gtk_widget_queue_draw(GTK_WIDGET(AppCtx.Dwa));
@@ -222,32 +224,40 @@ void DwaRelease(GtkGestureClick* self, gint n_press, gdouble x, gdouble y, gpoin
 
 void LinePreview(cairo_t *cr){
 	PointInt middlePoint, endPoint;
+	int direzione;
 	if(!AppCtx.buildingConnection->GetPath()->empty()){
 		//Stampa delle precedenti linee
 		AppCtx.buildingConnection->Draw(cr);
-		
-		Line* lastLine=AppCtx.buildingConnection->GetPath()->back();
-		switch(lastLine->GetDirection()){
-		case Direction::Up:
-			middlePoint={.x=AppCtx.StartLine->x, .y=std::min( AppCtx.CurrentPosition->y, AppCtx.StartLine->y )};
-			endPoint={.x=AppCtx.CurrentPosition->x, .y=std::min( AppCtx.CurrentPosition->y, AppCtx.StartLine->y )};
-			break;
-		case Direction::Down:
-			middlePoint={.x=AppCtx.StartLine->x, .y=std::max( AppCtx.CurrentPosition->y, AppCtx.StartLine->y )};
-			endPoint={.x=AppCtx.CurrentPosition->x, .y=std::max( AppCtx.CurrentPosition->y, AppCtx.StartLine->y )};
-			break;
-		case Direction::Left:
-			middlePoint={.x=std::min( AppCtx.CurrentPosition->x, AppCtx.StartLine->x ), .y=AppCtx.StartLine->y};
-			endPoint={.x=std::min( AppCtx.CurrentPosition->x, AppCtx.StartLine->x ), .y=AppCtx.CurrentPosition->y};
-			break;
-		case Direction::Right:
-			middlePoint={.x=std::max( AppCtx.CurrentPosition->x, AppCtx.StartLine->x ), .y=AppCtx.StartLine->y};
-			endPoint={.x=std::max( AppCtx.CurrentPosition->x, AppCtx.StartLine->x ), .y=AppCtx.CurrentPosition->y};
-			break;
-		}
+		direzione=AppCtx.buildingConnection->GetPath()->back()->GetDirection();
 	}else{
+		Hotpoint* hp=reinterpret_cast<Hotpoint*>(AppCtx.StartLine);
+		direzione=hp->GetDirection();
+	}
+	switch(direzione){
+	case DIR_UP:
+		middlePoint={.x=AppCtx.StartLine->x, .y=std::min( AppCtx.CurrentPosition->y, AppCtx.StartLine->y )};
+		endPoint={.x=AppCtx.CurrentPosition->x, .y=std::min( AppCtx.CurrentPosition->y, AppCtx.StartLine->y )};
+		break;
+	case DIR_DOWN:
+		middlePoint={.x=AppCtx.StartLine->x, .y=std::max( AppCtx.CurrentPosition->y, AppCtx.StartLine->y )};
+		endPoint={.x=AppCtx.CurrentPosition->x, .y=std::max( AppCtx.CurrentPosition->y, AppCtx.StartLine->y )};
+		break;
+	case DIR_LEFT:
+		middlePoint={.x=std::min( AppCtx.CurrentPosition->x, AppCtx.StartLine->x ), .y=AppCtx.StartLine->y};
+		endPoint={.x=std::min( AppCtx.CurrentPosition->x, AppCtx.StartLine->x ), .y=AppCtx.CurrentPosition->y};
+		break;
+	case DIR_RIGHT:
+		middlePoint={.x=std::max( AppCtx.CurrentPosition->x, AppCtx.StartLine->x ), .y=AppCtx.StartLine->y};
+		endPoint={.x=std::max( AppCtx.CurrentPosition->x, AppCtx.StartLine->x ), .y=AppCtx.CurrentPosition->y};
+		break;
+	case DIR_UP | DIR_DOWN:
+		middlePoint={.x=AppCtx.StartLine->x, .y=AppCtx.CurrentPosition->y};
+		endPoint={.x=AppCtx.CurrentPosition->x, .y=AppCtx.CurrentPosition->y};
+		break;
+	case DIR_LEFT | DIR_RIGHT:
 		middlePoint={.x=AppCtx.CurrentPosition->x, .y=AppCtx.StartLine->y};
 		endPoint={.x=AppCtx.CurrentPosition->x, .y=AppCtx.CurrentPosition->y};
+		break;
 	}
 			
 	double cx, cy;
@@ -266,7 +276,6 @@ gboolean DwaKeyPressed(GtkEventControllerKey *self, guint keyval, guint keycode,
 		AppCtx.LastSelected=NULL;
 		if(AppCtx.DrawHotpoint){
 			AppCtx.DrawHotpoint=FALSE;
-			delete AppCtx.drawingHotpoint;
 		}else if(AppCtx.DrawLine){
 			AppCtx.DrawLine=FALSE;
 			delete AppCtx.buildingConnection;

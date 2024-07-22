@@ -1,24 +1,6 @@
 #include "Component.h"
 #include <stdio.h>
 
-/*HOTPOINT IMPLEMENTATION*/
-
-Hotpoint::Hotpoint(int x, int y, int dim_bound){
-	this->x=x;
-	this->y=y;
-	cairo_rectangle_int_t rect={.x=x-(dim_bound/2), .y=y-(dim_bound/2), .width=dim_bound, .height=dim_bound};
-	this->region=cairo_region_create_rectangle(&rect);
-	this->region=cairo_region_reference(this->region);
-}
-
-Hotpoint::~Hotpoint(){
-	cairo_region_destroy(this->region);
-}
-
-bool Hotpoint::HotpointOn(int x, int y){
-	return (bool)cairo_region_contains_point(this->region, x, y);
-}
-
 /*COMPONENT IMPLEMENTATION*/
 
 Component::Component(const char *path_symbol, int xi, int yi){
@@ -70,8 +52,8 @@ Resistor::Resistor(int xi, int yi, float ohm):Component("./resources/imgs/resist
 	
 	int w=this->GetWidth();
 	int h=this->GetHeight();
-	this->hotpoints.push_back( new Hotpoint(xi, yi+(int)((float)h/2.0f), HOTPOINT_EDGE) );
-	this->hotpoints.push_back( new Hotpoint(xi+w, yi+(int)((float)h/2.0f), HOTPOINT_EDGE) );
+	this->hotpoints.push_back( new Hotpoint(xi, yi+(int)((float)h/2.0f), HOTPOINT_EDGE, DIR_LEFT) );
+	this->hotpoints.push_back( new Hotpoint(xi+w, yi+(int)((float)h/2.0f), HOTPOINT_EDGE, DIR_RIGHT) );
 }
 
 Capacitor::Capacitor(int xi, int yi, float fahrad):Component("./resources/imgs/capacitor.png", xi, yi){
@@ -79,8 +61,8 @@ Capacitor::Capacitor(int xi, int yi, float fahrad):Component("./resources/imgs/c
 	
 	int w=this->GetWidth();
 	int h=this->GetHeight();
-	this->hotpoints.push_back( new Hotpoint(xi, yi+(int)((float)h/2.0f), HOTPOINT_EDGE) );
-	this->hotpoints.push_back( new Hotpoint(xi+w, yi+(int)((float)h/2.0f), HOTPOINT_EDGE) );
+	this->hotpoints.push_back( new Hotpoint(xi, yi+(int)((float)h/2.0f), HOTPOINT_EDGE, DIR_LEFT) );
+	this->hotpoints.push_back( new Hotpoint(xi+w, yi+(int)((float)h/2.0f), HOTPOINT_EDGE, DIR_RIGHT) );
 }
 
 Inductor::Inductor(int xi, int yi, float henry):Component("./resources/imgs/inductor.png", xi, yi){
@@ -88,7 +70,136 @@ Inductor::Inductor(int xi, int yi, float henry):Component("./resources/imgs/indu
 	
 	int w=this->GetWidth();
 	int h=this->GetHeight();
-	this->hotpoints.push_back( new Hotpoint(xi, yi+h, HOTPOINT_EDGE) );
-	this->hotpoints.push_back( new Hotpoint(xi+w, yi+h, HOTPOINT_EDGE) );
+	this->hotpoints.push_back( new Hotpoint(xi, yi+h, HOTPOINT_EDGE, DIR_LEFT) );
+	this->hotpoints.push_back( new Hotpoint(xi+w, yi+h, HOTPOINT_EDGE, DIR_RIGHT) );
+}
+
+/*CONNECTION IMPLEMENTATION*/
+
+void Connection::Draw(cairo_t *cr){
+	for(std::list<Line*>::iterator it=this->path.begin(); it != this->path.end(); it++){
+		(*it)->Draw(cr);
+	}
+}
+
+Line* Connection::PointerOn(int x, int y){
+	for(std::list<Line*>::iterator it=this->path.begin(); it != this->path.end(); it++){
+		if((*it)->PointerOn(x, y)) return *it;
+	}
+	return NULL;
+}
+
+void Connection::AddLine(Line* l, bool front){
+	if(front){
+		this->path.push_front(l);
+	}else{
+		this->path.push_back(l);
+	}
+}
+
+void Connection::EndConnection(Component* e, Hotpoint* hp){	
+	this->endComp=e;
+	this->end=hp;
+	
+	PointInt *middlePoint=new PointInt();
+	PointInt *endPoint=dynamic_cast<PointInt*>(hp);
+	PointInt *startPoint;
+	int direzione;
+	if(!this->path.empty()){
+		Line* lastLine=this->path.back();
+		startPoint=lastLine->GetEnd();
+		direzione=lastLine->GetDirection();
+	}else{
+		startPoint=dynamic_cast<PointInt*>(this->start);
+		direzione=this->start->GetDirection();
+	}
+	switch(direzione){
+	case DIR_UP :
+		middlePoint->x=startPoint->x;
+		middlePoint->y=endPoint->y;
+		break;
+	case DIR_DOWN:
+		middlePoint->x=startPoint->x;
+		middlePoint->y=endPoint->y;
+		break;
+	case DIR_LEFT:
+		middlePoint->x=endPoint->x;
+		middlePoint->y=startPoint->y;
+		break;
+	case DIR_RIGHT:
+		middlePoint->x=endPoint->x;
+		middlePoint->y=startPoint->y;
+		break;
+	case DIR_UP | DIR_DOWN:
+		middlePoint->x=startPoint->x;
+		middlePoint->y=endPoint->y;
+		break;
+	case DIR_LEFT | DIR_RIGHT:
+		middlePoint->x=endPoint->x;
+		middlePoint->y=startPoint->y;
+		break;
+	}
+	this->AddLine( new Line(startPoint, middlePoint), false );
+	this->AddLine( new Line(middlePoint, endPoint), false );
+}
+
+void Connection::AppendPoint(PointInt *p){
+	PointInt *middlePoint=new PointInt();
+	PointInt *endPoint=p;
+	PointInt *startPoint;
+	int direzione;
+	if(!this->path.empty()){
+		Line* lastLine=this->path.back();
+		startPoint=lastLine->GetEnd();
+		direzione=lastLine->GetDirection();
+	}else{
+		startPoint=dynamic_cast<PointInt*>(this->start);
+		direzione=this->start->GetDirection();
+	}
+	switch(direzione){
+	case DIR_UP:
+		middlePoint->x=startPoint->x;
+		middlePoint->y=std::min( p->y, startPoint->y );
+		endPoint->y=std::min( p->y, startPoint->y );
+		break;
+	case DIR_DOWN:
+		middlePoint->x=startPoint->x;
+		middlePoint->y=std::max( p->y, startPoint->y );
+		endPoint->y=std::max( p->y, startPoint->y );
+		break;
+	case DIR_LEFT:
+		middlePoint->x=std::min( p->x, startPoint->x );
+		middlePoint->y=startPoint->y;
+		endPoint->x=std::min( p->x, startPoint->x );
+		break;
+	case DIR_RIGHT:
+		middlePoint->x=std::max( p->x, startPoint->x );
+		middlePoint->y=startPoint->y;
+		endPoint->x=std::max( p->x, startPoint->x );
+		break;
+	case DIR_UP | DIR_DOWN:
+		middlePoint->x=startPoint->x;
+		middlePoint->y=p->y;
+		break;
+	case DIR_LEFT | DIR_RIGHT:
+		middlePoint->y=startPoint->y;
+		middlePoint->x=p->x;
+		break;
+		
+	}
+	
+	this->AddLine( new Line(startPoint, middlePoint), false );
+	this->AddLine( new Line(middlePoint, endPoint), false );
+}
+
+Connection::~Connection(){
+	while(!this->path.empty()){
+		Line *l=this->path.back();
+		if(l->GetEnd() != this->end)
+			delete l->GetEnd();
+			
+		this->path.pop_back();
+		delete l;
+	}
 }
 

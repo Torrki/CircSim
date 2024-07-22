@@ -1,21 +1,12 @@
 #pragma once
-#include <gtk/gtk.h>
+
 #include <list>
+#include <unordered_map>
 #include "IDrawable.h"
+#include "Hotpoints.h"
+#include "DrawObjs.h"
 
-#define HOTPOINT_EDGE 18
-
-class Hotpoint : public PointInt{
-protected:
-	cairo_region_t* region;
-public:
-	Hotpoint(int x, int y, int dim_bound);
-	~Hotpoint();
-	int GetX(){return this->x;};
-	int GetY(){return this->y;};
-	cairo_region_t* GetRegion(){return this->region;};
-	bool HotpointOn(int x, int y);
-};
+class Connection;		//forward declaration
 
 class Component: public SurfaceDND{
 protected:
@@ -25,6 +16,28 @@ public:
 	~Component();
 	Hotpoint* HotpointOver(int x, int y);
 	void Drag(int x, int y);
+};
+
+class Connection: public IDrawable{
+	std::list<Line*> path;
+	Hotpoint *start, *end;
+	Component *startComp, *endComp;
+public:
+	Connection(Component* sc, Hotpoint *sp){this->start=sp; this->startComp=sc;};
+	~Connection();
+	Hotpoint* GetStart(){return this->start;};
+	Hotpoint* GetEnd(){return this->end;};
+	std::list<Line*>* GetPath(){return &(this->path);};
+	Component* GetCompStart(){return this->startComp;};
+	Component* GetCompEnd(){return this->endComp;};
+	void Draw(cairo_t* cr);
+	void Drag(double x, double y, int *dx, int *dy){};
+	Line* PointerOn(int x, int y);
+	
+	void AddLine(Line* l, bool front);
+	void AppendPoint(PointInt *p);
+	void EndConnection(Component* e, Hotpoint* hp);
+	
 };
 
 class Resistor: public Component{
