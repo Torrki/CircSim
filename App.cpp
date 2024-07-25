@@ -32,7 +32,6 @@ void LinePreview(cairo_t *cr);
 void InitApp(GtkApplication *self, gpointer user_data){
 	/*Inizializzazione widget della finestra e bind delle azioni*/
 	AppCtx.CurrentPosition=new PointInt();
-	//g_print("Up: %d\nDown: %d\nLeft: %d\nRight: %d\n", (int)Direction::Up, (int)Direction::Down, (int)Direction::Left, (int)Direction::Right);
 	
 	GtkBuilder *builder=gtk_builder_new_from_file("./resources/UI/MainWin.ui");
 	GtkWindow *Root=GTK_WINDOW(gtk_builder_get_object(builder, "RootWindow"));
@@ -93,26 +92,32 @@ void DrawSheet(GtkDrawingArea* self, cairo_t *cr, int width, int height, gpointe
 
 void RButton_clicked(GtkButton* self, gpointer user_data){
 	/*Aggiunge un bipolo resistore alla lista dello schema*/
-	AppCtx.Componenti.push_back(new Resistor(60.0, 60.0, 100.0));
+	Resistor *r=new Resistor(60.0, 60.0, 100.0);
+	//r->Rotate((5.0/2.0)*M_PI);
+	//r->Rotate((5.0/2.0)*M_PI);
+	AppCtx.Componenti.push_back(r);
 	gtk_widget_queue_draw(GTK_WIDGET(AppCtx.Dwa));
 }
 
 void CButton_clicked(GtkButton* self, gpointer user_data){
 	/*Aggiunge un bipolo condensatore alla lista dello schema*/
-	AppCtx.Componenti.push_back(new Capacitor(60.0, 60.0, 1.0));
+	Capacitor *c=new Capacitor(60.0, 60.0, 1.0);
+	//c->Rotate(3.0*M_PI);
+	AppCtx.Componenti.push_back(c);
 	gtk_widget_queue_draw(GTK_WIDGET(AppCtx.Dwa));
 }
 
 void LButton_clicked(GtkButton* self, gpointer user_data){
 	/*Aggiunge un bipolo induttore alla lista dello schema*/
-	AppCtx.Componenti.push_back(new Inductor(60.0, 60.0, 40.0));
+	Inductor *l=new Inductor(60.0, 60.0, 40.0);
+	//l->Rotate((7.0/2.0)*M_PI);
+	AppCtx.Componenti.push_back(l);
 	gtk_widget_queue_draw(GTK_WIDGET(AppCtx.Dwa));
 }
 
 void HPButton_clicked(GtkButton* self, gpointer user_data){
 	/*Aggiunge un hotpoint alle linee dello schema*/
 	AppCtx.DrawHotpoint=TRUE;
-	//AppCtx.drawingHotpoint=new HotpointDrawable(AppCtx.CurrentPosition->x, AppCtx.CurrentPosition->y);
 }
 
 void DwaMotion(GtkEventControllerMotion* self, gdouble x, gdouble y, gpointer user_data){
@@ -136,14 +141,30 @@ void DwaClick(GtkGestureClick* self, gint n_press, gdouble x, gdouble y, gpointe
 		if((*it)->PointerOn(x, y)){
 			AppCtx.LastSelected=*it;
 			Hotpoint *hp=(*it)->HotpointOver(x, y); //Se disegno o termino una connessione
-			if(hp){
+			if(hp && hp->Disponibile){
 				AppCtx.DrawLine = !AppCtx.DrawLine;
 				if(AppCtx.DrawLine){
-					AppCtx.StartLine=dynamic_cast<PointInt*>(hp);
+					AppCtx.StartLine=static_cast<PointInt*>(hp);
 					AppCtx.buildingConnection=new Connection(*it, hp);
 				}else{
 					//Aggiunta della nuova connessione alla lista
 					AppCtx.buildingConnection->EndConnection(*it, hp);
+					hp->Disponibile=false;
+					
+					//Aggiunta della connessione al componente
+					(*it)->AddConnection(AppCtx.buildingConnection);
+					
+					Component* s=AppCtx.buildingConnection->GetCompStart();
+					if(s){
+						s->AddConnection(AppCtx.buildingConnection);
+						AppCtx.buildingConnection->GetStart()->Disponibile=false;
+					}else{
+						int dirDelete=AppCtx.buildingConnection->GetPath()->front()->GetDirection();
+						HotpointDrawable *start=static_cast<HotpointDrawable*>(AppCtx.buildingConnection->GetStart());
+						start->AddConnection(dirDelete, AppCtx.buildingConnection);
+						
+						if(start->GetDirection()==0)start->Disponibile=false;
+					}
 					AppCtx.Connessioni.push_back(AppCtx.buildingConnection);
 				}
 				gtk_widget_queue_draw(GTK_WIDGET(AppCtx.Dwa));
@@ -158,15 +179,46 @@ void DwaClick(GtkGestureClick* self, gint n_press, gdouble x, gdouble y, gpointe
 	
 	/*Ciclo sugli hotpoint disegnabili per vedere se posso eseguire una azione su di essi*/
 	for(std::list<HotpointDrawable*>::iterator it=AppCtx.HotpointLinee.begin(); !AppCtx.DrawHotpoint && it != AppCtx.HotpointLinee.end(); it++){
-		if((*it)->HotpointOn(x, y)){ //Inizio o termino una connessione
-			Hotpoint *hp=dynamic_cast<Hotpoint*>(*it);
+		if((*it)->HotpointOn(x, y) && (*it)->Disponibile){ //Inizio o termino una connessione
+			Hotpoint *hp=static_cast<Hotpoint*>(*it);
 			AppCtx.DrawLine = !AppCtx.DrawLine;
 			if(AppCtx.DrawLine){
-				AppCtx.StartLine=dynamic_cast<PointInt*>(hp);
+				AppCtx.StartLine=static_cast<PointInt*>(hp);
 				AppCtx.buildingConnection=new Connection(NULL, hp);
 			}else{
 				//Aggiunta della nuova connessione alla lista
 				AppCtx.buildingConnection->EndConnection(NULL, hp);
+				
+				//Aggiunta della connessione al componente
+				int dirDelete=AppCtx.buildingConnection->GetPath()->back()->GetDirection();
+				switch(dirDelete){
+				case DIR_UP:
+					dirDelete=DIR_DOWN;
+					break;
+				case DIR_DOWN:
+					dirDelete=DIR_UP;
+					break;
+				case DIR_LEFT:
+					dirDelete=DIR_RIGHT;
+					break;
+				case DIR_RIGHT:
+					dirDelete=DIR_LEFT;
+					break;
+				}
+				(*it)->AddConnection(dirDelete, AppCtx.buildingConnection);
+				if( (*it)->GetDirection()==0 ) (*it)->Disponibile=false;
+				
+				Component* s=AppCtx.buildingConnection->GetCompStart();
+				if(s){
+					s->AddConnection(AppCtx.buildingConnection);
+					AppCtx.buildingConnection->GetStart()->Disponibile=false;
+				}else{
+					dirDelete=AppCtx.buildingConnection->GetPath()->front()->GetDirection();
+					HotpointDrawable *start=static_cast<HotpointDrawable*>(AppCtx.buildingConnection->GetStart());
+					start->AddConnection(dirDelete, AppCtx.buildingConnection);
+					
+					if(start->GetDirection()==0) start->Disponibile=false;
+				}
 				AppCtx.Connessioni.push_back(AppCtx.buildingConnection);
 			}
 			gtk_widget_queue_draw(GTK_WIDGET(AppCtx.Dwa));
@@ -192,22 +244,23 @@ void DwaClick(GtkGestureClick* self, gint n_press, gdouble x, gdouble y, gpointe
 					newHD=new HotpointDrawable(x, l->GetStart()->y, DIR_UP | DIR_DOWN);
 					
 				//split della linea
-				PointInt *np= dynamic_cast<PointInt*>(newHD);
+				PointInt *np= static_cast<PointInt*>(newHD);
 				Line *firstPart= new Line(l->GetStart(), np);
 				Line *secondPart= new Line(np, l->GetEnd());
 				
 				//creazione della nuova connessione, dalla fine fino al nuovo punto
-				Connection* c=new Connection(NULL, dynamic_cast<Hotpoint*>(newHD));
-				Line* tmp=(*it)->GetPath()->back();
+				Connection* c=new Connection(NULL, static_cast<Hotpoint*>(newHD));
+				Line* tmp=(*it)->PopLine(false);
 				while(tmp != l){	//passo tutte le linee nella nuova connessione
 					c->AddLine(tmp, true);
-					(*it)->GetPath()->pop_back();
-					tmp=(*it)->GetPath()->back();
+					tmp=(*it)->PopLine(false);
 				}
 				c->AddLine(secondPart, true);	//fine nuova connessione e rimpiazzamento con firstPart
-				(*it)->GetPath()->pop_back();
 				(*it)->AddLine(firstPart, false);
 				
+				//Aggiunta delle nuove connessioni all'hotpoint
+				newHD->AddConnection(0, *it);
+				newHD->AddConnection(0, c);
 				AppCtx.HotpointLinee.push_back(newHD);
 				AppCtx.Connessioni.push_back(c);
 				
@@ -230,7 +283,7 @@ void LinePreview(cairo_t *cr){
 		AppCtx.buildingConnection->Draw(cr);
 		direzione=AppCtx.buildingConnection->GetPath()->back()->GetDirection();
 	}else{
-		Hotpoint* hp=reinterpret_cast<Hotpoint*>(AppCtx.StartLine);
+		Hotpoint* hp=static_cast<Hotpoint*>(AppCtx.StartLine);
 		direzione=hp->GetDirection();
 	}
 	switch(direzione){
@@ -271,6 +324,7 @@ void LinePreview(cairo_t *cr){
 
 gboolean DwaKeyPressed(GtkEventControllerKey *self, guint keyval, guint keycode, GdkModifierType state, gpointer user_data){
 	gboolean ret;
+	printf("%d\n", keycode);
 	switch(keycode){
 	case 9:		//ESC
 		AppCtx.LastSelected=NULL;
@@ -283,6 +337,12 @@ gboolean DwaKeyPressed(GtkEventControllerKey *self, guint keyval, guint keycode,
 		ret=true;
 		gtk_widget_queue_draw(GTK_WIDGET(AppCtx.Dwa));
 		break;
+	case 27: //R
+		if(AppCtx.LastSelected){
+			AppCtx.LastSelected->Rotate(M_PI/2.0);
+		}
+		ret=true;
+		gtk_widget_queue_draw(GTK_WIDGET(AppCtx.Dwa));
 	default:
 		ret=false;
 		break;

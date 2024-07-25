@@ -1,14 +1,73 @@
 #include <cmath>
+#include <stdio.h>
+#include <typeinfo>
 #include "DrawObjs.h"
 
 /*SURFACE DRAWABLE IMPLEMENTATION*/
 
 void SurfaceDrawable::Draw(cairo_t* cr){
-	cairo_set_source_surface(cr, this->surface, this->drawPoint->x, this->drawPoint->y);
+	cairo_translate(cr, (double)this->drawPoint->x, (double)this->drawPoint->y);
+	cairo_rotate(cr, this->rotation);
+	cairo_set_source_surface(cr, this->surface, 0, 0);
 	cairo_paint(cr);
+	cairo_rotate(cr, -this->rotation);
+	cairo_translate(cr, (double)-this->drawPoint->x, (double)-this->drawPoint->y);
+}
+
+SurfaceDrawable::~SurfaceDrawable(){
+	delete this->drawPoint;
+	cairo_surface_destroy(this->surface);
+}
+
+SurfaceDrawable::SurfaceDrawable(PointInt *p, cairo_surface_t* s){
+	this->drawPoint=p;
+	this->surface=s;
+	this->rotation=0.0;
+}
+
+SurfaceDrawable::SurfaceDrawable(PointInt *p, const char* png){
+	this->drawPoint=p;
+	this->surface=cairo_image_surface_create_from_png(png);
+	this->rotation=0.0;
+}
+
+SurfaceDrawable::SurfaceDrawable(int x, int y, const char* png){
+	PointInt *p=new PointInt();
+	p->x=x;
+	p->y=y;
+	this->drawPoint=p;
+	this->surface=cairo_image_surface_create_from_png(png);
+	this->rotation=0.0;
+}
+
+SurfaceDrawable::SurfaceDrawable(int x, int y, cairo_surface_t *s){
+	PointInt *p=new PointInt();
+	p->x=x;
+	p->y=y;
+	this->drawPoint=p;
+	this->surface=s;
+	this->rotation=0.0;
+}
+
+void SurfaceDrawable::Rotate(double ang){
+	if(ang > 0.0){
+		double nGiri=std::floor( ang/(2.0*M_PI) );
+		double rotPrec=this->rotation;
+		this->rotation += ang - (nGiri * 2.0*M_PI);
+	}
 }
 
 /*SURFACE DND IMPLEMENTATION*/
+
+SurfaceDND::SurfaceDND(int x, int y, cairo_surface_t* s):SurfaceDrawable(x, y, s){
+	cairo_rectangle_int_t rect={.x=x, .y=y, .width=cairo_image_surface_get_width(s), .height=cairo_image_surface_get_height(s)};
+	this->regionBound=cairo_region_create_rectangle(&rect);
+}
+
+SurfaceDND::SurfaceDND(int x, int y, const char* png):SurfaceDrawable(x, y, png){
+	cairo_rectangle_int_t rect={.x=x, .y=y, .width=this->GetWidth(), .height=this->GetHeight()};
+	this->regionBound=cairo_region_create_rectangle(&rect);
+}
 
 void SurfaceDND::Drag(int x, int y, int *dx, int *dy){
 	*dx= x-this->drawPoint->x;
@@ -19,13 +78,37 @@ void SurfaceDND::Drag(int x, int y, int *dx, int *dy){
 	this->drawPoint->y=y;
 }
 
-SurfaceDrawable::~SurfaceDrawable(){
-	delete this->drawPoint;
-	cairo_surface_destroy(this->surface);
-}
-
 bool SurfaceDND::PointerOn(int x, int y){
 	return (bool)cairo_region_contains_point(this->regionBound, x, y);
+}
+
+void SurfaceDND::Rotate(double ang){
+	if(ang > 0.0){
+		double rotPrec=this->rotation;
+		if(rotPrec + ang >= 2.0*M_PI){
+			double nGiri=std::floor( (rotPrec+ang)/(2.0*M_PI) );
+			this->rotation = (rotPrec+ang) - nGiri*2.0*M_PI;
+		}else{
+			this->rotation += ang;
+		}
+		
+		int x1=this->drawPoint->x, x2;
+		int y1=this->drawPoint->y, y2;
+		int w=this->GetWidth();
+		int h=this->GetHeight();
+		x2 = x1 + (int)( std::cos(this->rotation)*(double)w - std::sin(this->rotation)*(double)h );
+		y2 = y1 + (int)( std::cos(this->rotation)*(double)h + std::sin(this->rotation)*(double)w );
+		
+		cairo_rectangle_int_t rect;
+		rect.x=std::min(x1, x2);
+		rect.y=std::min(y1, y2);
+		rect.width=std::abs(x2-x1);
+		rect.height=std::abs(y2-y1);
+		
+		cairo_region_destroy(this->regionBound);
+		this->regionBound=cairo_region_create_rectangle(&rect);
+		this->regionBound=cairo_region_reference(this->regionBound);
+	}
 }
 
 SurfaceDND::~SurfaceDND(){
@@ -67,3 +150,4 @@ void Line::Draw(cairo_t *cr){
 Line::~Line(){
 	cairo_region_destroy(this->region);
 }
+

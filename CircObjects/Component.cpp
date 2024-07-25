@@ -1,19 +1,10 @@
 #include "Component.h"
 #include <stdio.h>
+#include <complex>
 
 /*COMPONENT IMPLEMENTATION*/
 
-Component::Component(const char *path_symbol, int xi, int yi){
-	this->surface=cairo_image_surface_create_from_png(path_symbol);
-	this->drawPoint=new PointInt();
-	this->drawPoint->x=xi;
-	this->drawPoint->y=yi;
-
-	int w=this->GetWidth();
-	int h=this->GetHeight();
-	cairo_rectangle_int_t rect={.x=xi, .y=yi, .width=w, .height=h};	
-	this->regionBound=cairo_region_create_rectangle(&rect);
-	
+Component::Component(const char *path_symbol, int xi, int yi): SurfaceDND(xi, yi, path_symbol){
 	this->regionBound=cairo_region_reference(this->regionBound);
 	this->surface=cairo_surface_reference(this->surface);
 }
@@ -43,6 +34,53 @@ Component::~Component(){
 	}
 	
 	this->~SurfaceDND();
+}
+
+void Component::AddConnection(Connection* c){
+	if(c){
+		this->connections.push_back(c);
+	}
+}
+
+void Component::Rotate(double ang){
+	SurfaceDND::Rotate(ang);
+	if(ang > 0.0){
+		double nGiri=std::trunc(ang/(2.0*M_PI));
+		double rotazioneEffettiva=ang - nGiri*2.0*M_PI;
+		
+		//Spostamento Hotpoint
+		for(std::list<Hotpoint*>::iterator it=this->hotpoints.begin(); it != this->hotpoints.end(); it++){
+			int Xr=(*it)->x;
+			int Yr=(*it)->y;
+			int x_1=Xr-this->drawPoint->x;
+			int y_1=Yr-this->drawPoint->y;
+			
+			std::complex<double> c(x_1, y_1);	//tramite i complessi lavoro sulle fasi per semplificare codice e calcoli
+			std::complex<double> res=c*std::polar(1.0, ang);
+			
+			std::complex<double> diff=res-c;
+			
+			int dx=(int)diff.real();
+			int dy=(int)diff.imag();
+			
+			cairo_region_translate((*it)->GetRegion(), dx, dy);
+			(*it)->x=(int)res.real()+this->drawPoint->x;
+			(*it)->y=(int)res.imag()+this->drawPoint->y;
+			
+			//Aggiornamento direzioni
+			unsigned int dir=(*it)->GetDirection();
+			unsigned int spostamento=0;
+			if(rotazioneEffettiva==M_PI/2.0){
+				spostamento=1;
+			}else if(rotazioneEffettiva==M_PI){
+				spostamento=2;
+			}else if(rotazioneEffettiva==M_PI*(3.0/2.0)){
+				spostamento=3;
+			}
+			(*it)->SetDirection(dir << spostamento);
+		}
+		
+	}
 }
 
 /*RESISTOR-CAPACITOR-INDUCTOR*/
@@ -97,12 +135,24 @@ void Connection::AddLine(Line* l, bool front){
 	}
 }
 
+Line* Connection::PopLine(bool front){
+	Line* l;
+	if(front){
+		l=this->path.front();
+		this->path.pop_front();
+	}else{
+		l=this->path.back();
+		this->path.pop_back();
+	}
+	return l;
+}
+
 void Connection::EndConnection(Component* e, Hotpoint* hp){	
 	this->endComp=e;
 	this->end=hp;
 	
 	PointInt *middlePoint=new PointInt();
-	PointInt *endPoint=dynamic_cast<PointInt*>(hp);
+	PointInt *endPoint=static_cast<PointInt*>(hp);
 	PointInt *startPoint;
 	int direzione;
 	if(!this->path.empty()){
@@ -110,7 +160,7 @@ void Connection::EndConnection(Component* e, Hotpoint* hp){
 		startPoint=lastLine->GetEnd();
 		direzione=lastLine->GetDirection();
 	}else{
-		startPoint=dynamic_cast<PointInt*>(this->start);
+		startPoint=static_cast<PointInt*>(this->start);
 		direzione=this->start->GetDirection();
 	}
 	switch(direzione){
@@ -153,7 +203,7 @@ void Connection::AppendPoint(PointInt *p){
 		startPoint=lastLine->GetEnd();
 		direzione=lastLine->GetDirection();
 	}else{
-		startPoint=dynamic_cast<PointInt*>(this->start);
+		startPoint=static_cast<PointInt*>(this->start);
 		direzione=this->start->GetDirection();
 	}
 	switch(direzione){

@@ -16,12 +16,12 @@ protected:
 	int direzione;
 	cairo_region_t* region;
 public:
+	bool Disponibile;
 	Hotpoint(int x, int y, int dim_bound, int dir);
 	~Hotpoint();
-	int GetX(){return this->x;};
-	int GetY(){return this->y;};
-	cairo_region_t* GetRegion(){return this->region;};
+	cairo_region_t* GetRegion() const {return this->region;};
 	int GetDirection(){return this->direzione;};
+	void SetDirection(int dir);
 	bool HotpointOn(int x, int y);
 };
 
@@ -32,5 +32,6 @@ public:
 	~HotpointDrawable(){this->~Hotpoint();};
 	void Draw(cairo_t *cr);
 	void Drag(int x, int y, int *dx, int *dy);
+	void AddConnection(int dir, Connection* c);
 };
 

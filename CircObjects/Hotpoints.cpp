@@ -8,6 +8,7 @@ Hotpoint::Hotpoint(int x, int y, int dim_bound, int dir){
 	this->x=x;
 	this->y=y;
 	this->direzione=dir;
+	this->Disponibile=true;
 	cairo_rectangle_int_t rect={.x=x-(dim_bound/2), .y=y-(dim_bound/2), .width=dim_bound, .height=dim_bound};
 	this->region=cairo_region_create_rectangle(&rect);
 	this->region=cairo_region_reference(this->region);
@@ -19,6 +20,17 @@ Hotpoint::~Hotpoint(){
 
 bool Hotpoint::HotpointOn(int x, int y){
 	return (bool)cairo_region_contains_point(this->region, x, y);
+}
+
+void Hotpoint::SetDirection(int dir){
+	int eccesso=dir/16;
+	if(eccesso > 0){
+		unsigned int nBit=std::log2(eccesso);
+		unsigned int nBitEffettivi = nBit % 4;
+		this->direzione = (unsigned int)1 << nBitEffettivi;
+	}else{
+		this->direzione=dir;
+	}
 }
 
 /*HOTPOINT_DRAWABLE IMPLEMENTATION*/
@@ -42,5 +54,12 @@ void HotpointDrawable::Drag(int x, int y, int *dx, int *dy){
 	
 	if(dx) *dx=var_dx;
 	if(dy) *dy=var_dy;
+}
+
+void HotpointDrawable::AddConnection(int dir, Connection* c){
+	if(c){
+		this->connections.push_back(c);
+		this->direzione &= ~( (unsigned int)dir );
+	}
 }
 
