@@ -1,7 +1,6 @@
 #pragma once
 
 #include <list>
-#include <unordered_map>
 #include "IDrawable.h"
 #include "Hotpoints.h"
 #include "DrawObjs.h"
@@ -34,7 +33,6 @@ public:
 	Component* GetCompStart() const {return this->startComp;};
 	Component* GetCompEnd() const {return this->endComp;};
 	void Draw(cairo_t* cr);
-	void Drag(double x, double y, int *dx, int *dy){};
 	Line* PointerOn(int x, int y);
 	
 	void AddLine(Line* l, bool front);
@@ -42,23 +40,5 @@ public:
 	void AppendPoint(PointInt *p);
 	void EndConnection(Component* e, Hotpoint* hp);
 	
-};
-
-class Resistor: public Component{
-public:
-	float Value;
-	Resistor(int xi, int yi, float ohm);
-};
-
-class Capacitor: public Component{
-public:
-	float Value;
-	Capacitor(int xi, int yi, float fahrad);
-};
-
-class Inductor: public Component{
-public:
-	float Value;
-	Inductor(int xi, int yi, float henry);
 };
 

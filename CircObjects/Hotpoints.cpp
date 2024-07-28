@@ -1,6 +1,5 @@
 #include <cmath>
 #include "Hotpoints.h"
-#include <stdio.h>
 
 /*HOTPOINT IMPLEMENTATION*/
 

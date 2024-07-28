@@ -1,5 +1,7 @@
 #include <list>
-#include "Component.h"
+#include "Resistore/Resistore.h"
+#include "Condensatore/Condensatore.h"
+#include "Induttore/Induttore.h"
 #include "App.h"
 
 struct {

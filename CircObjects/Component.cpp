@@ -1,5 +1,4 @@
 #include "Component.h"
-#include <stdio.h>
 #include <complex>
 
 /*COMPONENT IMPLEMENTATION*/
@@ -44,7 +43,7 @@ void Component::AddConnection(Connection* c){
 
 void Component::Rotate(double ang){
 	SurfaceDND::Rotate(ang);
-	if(ang > 0.0){
+	if(ang != 0.0){
 		double nGiri=std::trunc(ang/(2.0*M_PI));
 		double rotazioneEffettiva=ang - nGiri*2.0*M_PI;
 		
@@ -55,17 +54,15 @@ void Component::Rotate(double ang){
 			int x_1=Xr-this->drawPoint->x;
 			int y_1=Yr-this->drawPoint->y;
 			
-			std::complex<double> c(x_1, y_1);	//tramite i complessi lavoro sulle fasi per semplificare codice e calcoli
+			std::complex<double> c((double)x_1, (double)y_1);	//tramite i complessi lavoro sulle fasi per semplificare codice e calcoli
 			std::complex<double> res=c*std::polar(1.0, ang);
-			
 			std::complex<double> diff=res-c;
-			
 			int dx=(int)diff.real();
 			int dy=(int)diff.imag();
 			
 			cairo_region_translate((*it)->GetRegion(), dx, dy);
-			(*it)->x=(int)res.real()+this->drawPoint->x;
-			(*it)->y=(int)res.imag()+this->drawPoint->y;
+			(*it)->x += dx;
+			(*it)->y += dy;
 			
 			//Aggiornamento direzioni
 			unsigned int dir=(*it)->GetDirection();
@@ -78,39 +75,13 @@ void Component::Rotate(double ang){
 				spostamento=3;
 			}
 			(*it)->SetDirection(dir << spostamento);
+			cairo_region_union(this->regionBound, (*it)->GetRegion() );
 		}
 		
 	}
 }
 
 /*RESISTOR-CAPACITOR-INDUCTOR*/
-
-Resistor::Resistor(int xi, int yi, float ohm):Component("./resources/imgs/resistor.png", xi, yi){
-	this->Value=ohm;
-	
-	int w=this->GetWidth();
-	int h=this->GetHeight();
-	this->hotpoints.push_back( new Hotpoint(xi, yi+(int)((float)h/2.0f), HOTPOINT_EDGE, DIR_LEFT) );
-	this->hotpoints.push_back( new Hotpoint(xi+w, yi+(int)((float)h/2.0f), HOTPOINT_EDGE, DIR_RIGHT) );
-}
-
-Capacitor::Capacitor(int xi, int yi, float fahrad):Component("./resources/imgs/capacitor.png", xi, yi){
-	this->Value=fahrad;
-	
-	int w=this->GetWidth();
-	int h=this->GetHeight();
-	this->hotpoints.push_back( new Hotpoint(xi, yi+(int)((float)h/2.0f), HOTPOINT_EDGE, DIR_LEFT) );
-	this->hotpoints.push_back( new Hotpoint(xi+w, yi+(int)((float)h/2.0f), HOTPOINT_EDGE, DIR_RIGHT) );
-}
-
-Inductor::Inductor(int xi, int yi, float henry):Component("./resources/imgs/inductor.png", xi, yi){
-	this->Value=henry;
-	
-	int w=this->GetWidth();
-	int h=this->GetHeight();
-	this->hotpoints.push_back( new Hotpoint(xi, yi+h, HOTPOINT_EDGE, DIR_LEFT) );
-	this->hotpoints.push_back( new Hotpoint(xi+w, yi+h, HOTPOINT_EDGE, DIR_RIGHT) );
-}
 
 /*CONNECTION IMPLEMENTATION*/
 

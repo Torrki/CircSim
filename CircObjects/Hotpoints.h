@@ -9,7 +9,7 @@ class Hotpoint;
 #include "Component.h"
 
 #define HOTPOINT_RADIUS 5.0
-#define HOTPOINT_EDGE 18
+#define HOTPOINT_EDGE 10
 
 class Hotpoint : public PointInt{
 protected:

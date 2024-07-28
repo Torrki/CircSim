@@ -1,6 +1,4 @@
 #include <cmath>
-#include <stdio.h>
-#include <typeinfo>
 #include "DrawObjs.h"
 
 /*SURFACE DRAWABLE IMPLEMENTATION*/
@@ -83,7 +81,7 @@ bool SurfaceDND::PointerOn(int x, int y){
 }
 
 void SurfaceDND::Rotate(double ang){
-	if(ang > 0.0){
+	if(ang != 0.0){
 		double rotPrec=this->rotation;
 		if(rotPrec + ang >= 2.0*M_PI){
 			double nGiri=std::floor( (rotPrec+ang)/(2.0*M_PI) );
