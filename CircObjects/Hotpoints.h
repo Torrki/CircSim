@@ -3,35 +3,40 @@
 class Connection;
 class Hotpoint;
 
-#include <cairo/cairo.h>
 #include "Point.h"
 #include "IDrawable.h"
+#include "IDragable.h"
+#include "ISelectable.h"
 #include "Component.h"
 
 #define HOTPOINT_RADIUS 5.0
 #define HOTPOINT_EDGE 10
 
-class Hotpoint : public PointInt{
+using namespace std;
+
+class Hotpoint : public PointInt, public ISelectable{
 protected:
 	int direzione;
 	cairo_region_t* region;
 public:
+	float Poternziale;
 	bool Disponibile;
+	
 	Hotpoint(int x, int y, int dim_bound, int dir);
 	~Hotpoint();
 	cairo_region_t* GetRegion() const {return this->region;};
 	int GetDirection(){return this->direzione;};
 	void SetDirection(int dir);
-	bool HotpointOn(int x, int y);
+	bool PointerOn(PointInt p);
 };
 
 class HotpointDrawable: public Hotpoint , public IDrawable , public IDragable{
-	std::list<Connection*> connections;
+	list<Connection*> connections;
 public:
 	HotpointDrawable(int x, int y, int dirs);
 	~HotpointDrawable(){this->~Hotpoint();};
 	void Draw(cairo_t *cr);
-	void Drag(int x, int y, int *dx, int *dy);
+	void Drag(PointInt p, int *dx, int *dy);
 	void AddConnection(int dir, Connection* c);
 };
 

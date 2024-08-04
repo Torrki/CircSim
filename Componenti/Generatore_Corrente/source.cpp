@@ -1,12 +1,13 @@
 #include "BaseComp.h"
-#include <string>
 #include <fstream>
+#include <string>
 
 using namespace std;
 
-Inductor::Inductor(PointInt pi, float henry):Component("./Componenti/Induttore/imgs/inductor.png", pi){
-	this->Value=henry;
-	ifstream file=ifstream("./Componenti/Induttore/Induttore.txt");
+CurrentSource::CurrentSource(PointInt pi, float i, float ri): Component("./Componenti/Generatore_Corrente/imgs/current_source.png", pi){
+	this->Value=i;
+	this->Ri=ri;
+	ifstream file=ifstream("./Componenti/Generatore_Corrente/GeneratoreCorrente.txt");
 	
 	int w=this->GetWidth();
 	int h=this->GetHeight();

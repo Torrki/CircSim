@@ -1,12 +1,12 @@
-#include "Resistore.h"
+#include "BaseComp.h"
 #include <string>
 #include <fstream>
 
 using namespace std;
 
-Resistor::Resistor(int xi, int yi, float ohm):Component("./resources/imgs/resistor.png", xi, yi){
+Resistor::Resistor(PointInt pi, float ohm):Component("./Componenti/Resistore/imgs/resistor.png", pi){
 	this->Value=ohm;
-	ifstream file=ifstream("./resources/hotpoints/Resistore.txt");
+	ifstream file=ifstream("./Componenti/Resistore/Resistore.txt");
 	
 	int w=this->GetWidth();
 	int h=this->GetHeight();
@@ -35,9 +35,10 @@ Resistor::Resistor(int xi, int yi, float ohm):Component("./resources/imgs/resist
 		}else if(dir.find("D") != string::npos){
 			direzione=DIR_DOWN;
 		}
-		Hotpoint* hotp=new Hotpoint( (float)xi+((float)w*xf), (float)yi+((float)h*yf ), HOTPOINT_EDGE, direzione);
+		Hotpoint* hotp=new Hotpoint( (float)pi.x+((float)w*xf), (float)pi.y+((float)h*yf ), HOTPOINT_EDGE, direzione);
 		this->hotpoints.push_back( hotp );
 		cairo_region_union(this->regionBound, hotp->GetRegion() );
 	}
+	file.close();
 }
 

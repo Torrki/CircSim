@@ -17,10 +17,6 @@ Hotpoint::~Hotpoint(){
 	cairo_region_destroy(this->region);
 }
 
-bool Hotpoint::HotpointOn(int x, int y){
-	return (bool)cairo_region_contains_point(this->region, x, y);
-}
-
 void Hotpoint::SetDirection(int dir){
 	int eccesso=dir/16;
 	if(eccesso > 0){
@@ -30,6 +26,10 @@ void Hotpoint::SetDirection(int dir){
 	}else{
 		this->direzione=dir;
 	}
+}
+
+bool Hotpoint::PointerOn(PointInt p){
+	return (bool)cairo_region_contains_point(this->region, p.x, p.y);
 }
 
 /*HOTPOINT_DRAWABLE IMPLEMENTATION*/
@@ -43,13 +43,13 @@ void HotpointDrawable::Draw(cairo_t *cr){
 	cairo_arc(cr, this->x, this->y, HOTPOINT_RADIUS, 0.0, 2.0*M_PI);
 }
 
-void HotpointDrawable::Drag(int x, int y, int *dx, int *dy){
+void HotpointDrawable::Drag(PointInt p, int *dx, int *dy){
 	int var_dx, var_dy;
-	var_dx= x-this->x;
-	var_dy= y-this->y;
+	var_dx= p.x-this->x;
+	var_dy= p.y-this->y;
 	cairo_region_translate(this->region, var_dx, var_dy);
-	this->x=x;
-	this->y=y;
+	this->x=p.x;
+	this->y=p.y;
 	
 	if(dx) *dx=var_dx;
 	if(dy) *dy=var_dy;

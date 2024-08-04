@@ -4,9 +4,8 @@
 
 using namespace std;
 
-Inductor::Inductor(PointInt pi, float henry):Component("./Componenti/Induttore/imgs/inductor.png", pi){
-	this->Value=henry;
-	ifstream file=ifstream("./Componenti/Induttore/Induttore.txt");
+GND::GND(PointInt pi):Component("./Componenti/GND/imgs/GND.png", pi){
+	ifstream file=ifstream("./Componenti/GND/GND.txt");
 	
 	int w=this->GetWidth();
 	int h=this->GetHeight();
@@ -41,4 +40,3 @@ Inductor::Inductor(PointInt pi, float henry):Component("./Componenti/Induttore/i
 	}
 	file.close();
 }
-

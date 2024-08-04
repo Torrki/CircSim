@@ -29,20 +29,20 @@ SurfaceDrawable::SurfaceDrawable(PointInt *p, const char* png){
 	this->rotation=0.0;
 }
 
-SurfaceDrawable::SurfaceDrawable(int x, int y, const char* png){
-	PointInt *p=new PointInt();
-	p->x=x;
-	p->y=y;
-	this->drawPoint=p;
+SurfaceDrawable::SurfaceDrawable(PointInt p, const char* png){
+	PointInt *tmp=new PointInt();
+	tmp->x=p.x;
+	tmp->y=p.y;
+	this->drawPoint=tmp;
 	this->surface=cairo_image_surface_create_from_png(png);
 	this->rotation=0.0;
 }
 
-SurfaceDrawable::SurfaceDrawable(int x, int y, cairo_surface_t *s){
-	PointInt *p=new PointInt();
-	p->x=x;
-	p->y=y;
-	this->drawPoint=p;
+SurfaceDrawable::SurfaceDrawable(PointInt p, cairo_surface_t *s){
+	PointInt *tmp=new PointInt();
+	tmp->x=p.x;
+	tmp->y=p.y;
+	this->drawPoint=tmp;
 	this->surface=s;
 	this->rotation=0.0;
 }
@@ -57,27 +57,27 @@ void SurfaceDrawable::Rotate(double ang){
 
 /*SURFACE DND IMPLEMENTATION*/
 
-SurfaceDND::SurfaceDND(int x, int y, cairo_surface_t* s):SurfaceDrawable(x, y, s){
-	cairo_rectangle_int_t rect={.x=x, .y=y, .width=cairo_image_surface_get_width(s), .height=cairo_image_surface_get_height(s)};
+SurfaceDND::SurfaceDND(PointInt p, cairo_surface_t* s):SurfaceDrawable(p, s){
+	cairo_rectangle_int_t rect={.x=p.x, .y=p.y, .width=cairo_image_surface_get_width(s), .height=cairo_image_surface_get_height(s)};
 	this->regionBound=cairo_region_create_rectangle(&rect);
 }
 
-SurfaceDND::SurfaceDND(int x, int y, const char* png):SurfaceDrawable(x, y, png){
-	cairo_rectangle_int_t rect={.x=x, .y=y, .width=this->GetWidth(), .height=this->GetHeight()};
+SurfaceDND::SurfaceDND(PointInt p, const char* png):SurfaceDrawable(p, png){
+	cairo_rectangle_int_t rect={.x=p.x, .y=p.y, .width=this->GetWidth(), .height=this->GetHeight()};
 	this->regionBound=cairo_region_create_rectangle(&rect);
 }
 
-void SurfaceDND::Drag(int x, int y, int *dx, int *dy){
-	*dx= x-this->drawPoint->x;
-	*dy= y-this->drawPoint->y;
+void SurfaceDND::Drag(PointInt p, int *dx, int *dy){
+	*dx= p.x-this->drawPoint->x;
+	*dy= p.y-this->drawPoint->y;
 	cairo_region_translate(this->regionBound, *dx, *dy);
 	
-	this->drawPoint->x=x;
-	this->drawPoint->y=y;
+	this->drawPoint->x=p.x;
+	this->drawPoint->y=p.y;
 }
 
-bool SurfaceDND::PointerOn(int x, int y){
-	return (bool)cairo_region_contains_point(this->regionBound, x, y);
+bool SurfaceDND::PointerOn(PointInt p){
+	return (bool)cairo_region_contains_point(this->regionBound, p.x, p.y);
 }
 
 void SurfaceDND::Rotate(double ang){

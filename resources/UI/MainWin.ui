@@ -18,7 +18,7 @@
 								<property name="height-request">60</property>
 								<property name="child">
 									<object class="GtkImage">
-										<property name="file">./resources/imgs/resistor_icon.png</property>
+										<property name="file">./Componenti/Resistore/imgs/resistor_icon.png</property>
 									</object>
 								</property>
 							</object>
@@ -28,7 +28,7 @@
 								<property name="height-request">60</property>
 								<property name="child">
 									<object class="GtkImage">
-										<property name="file">./resources/imgs/capacitor_icon.png</property>
+										<property name="file">./Componenti/Condensatore/imgs/capacitor_icon.png</property>
 									</object>
 								</property>
 							</object>
@@ -38,7 +38,7 @@
 								<property name="height-request">60</property>
 								<property name="child">
 									<object class="GtkImage">
-										<property name="file">./resources/imgs/inductor_icon.png</property>
+										<property name="file">./Componenti/Induttore/imgs/inductor_icon.png</property>
 									</object>
 								</property>
 							</object>
@@ -48,7 +48,37 @@
 								<property name="height-request">60</property>
 								<property name="child">
 									<object class="GtkImage">
-										<property name="file">./resources/imgs/hotpoint_icon.png</property>
+										<property name="file">./Componenti/hotpoint_icon.png</property>
+									</object>
+								</property>
+							</object>
+						</child>
+						<child>
+							<object class="GtkButton" id="CurrentSourceButton">
+								<property name="height-request">60</property>
+								<property name="child">
+									<object class="GtkImage">
+										<property name="file">./Componenti/Generatore_Corrente/imgs/current_source_icon.png</property>
+									</object>
+								</property>
+							</object>
+						</child>
+						<child>
+							<object class="GtkButton" id="BatteryButton">
+								<property name="height-request">60</property>
+								<property name="child">
+									<object class="GtkImage">
+										<property name="file">./Componenti/Batteria/imgs/battery_icon.png</property>
+									</object>
+								</property>
+							</object>
+						</child>
+						<child>
+							<object class="GtkButton" id="GNDButton">
+								<property name="height-request">60</property>
+								<property name="child">
+									<object class="GtkImage">
+										<property name="file">./Componenti/GND/imgs/GND_icon.png</property>
 									</object>
 								</property>
 							</object>

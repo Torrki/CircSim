@@ -4,9 +4,10 @@
 
 using namespace std;
 
-Inductor::Inductor(PointInt pi, float henry):Component("./Componenti/Induttore/imgs/inductor.png", pi){
-	this->Value=henry;
-	ifstream file=ifstream("./Componenti/Induttore/Induttore.txt");
+Battery::Battery(PointInt pi, float ddp, float ri): Component("./Componenti/Batteria/imgs/battery.png", pi){
+	this->Value=ddp;
+	this->Ri=ri;
+	ifstream file=ifstream("./Componenti/Batteria/Batteria.txt");
 	
 	int w=this->GetWidth();
 	int h=this->GetHeight();

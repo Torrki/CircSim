@@ -1,12 +1,12 @@
-#include "Condensatore.h"
+#include "BaseComp.h"
 #include <string>
 #include <fstream>
 
 using namespace std;
 
-Capacitor::Capacitor(int xi, int yi, float fahrad):Component("./resources/imgs/capacitor.png", xi, yi){
+Capacitor::Capacitor(PointInt pi, float fahrad):Component("./Componenti/Condensatore/imgs/capacitor.png", pi){
 	this->Value=fahrad;
-	ifstream file=ifstream("./resources/hotpoints/Condensatore.txt");
+	ifstream file=ifstream("./Componenti/Condensatore/Condensatore.txt");
 	
 	int w=this->GetWidth();
 	int h=this->GetHeight();
@@ -35,9 +35,10 @@ Capacitor::Capacitor(int xi, int yi, float fahrad):Component("./resources/imgs/c
 		}else if(dir.find("D") != string::npos){
 			direzione=DIR_DOWN;
 		}
-		Hotpoint* hotp=new Hotpoint( (float)xi+((float)w*xf), (float)yi+((float)h*yf ), HOTPOINT_EDGE, direzione);
+		Hotpoint* hotp=new Hotpoint( (float)pi.x+((float)w*xf), (float)pi.y+((float)h*yf ), HOTPOINT_EDGE, direzione);
 		this->hotpoints.push_back( hotp );
 		cairo_region_union(this->regionBound, hotp->GetRegion() );
 	}
+	file.close();
 }
 

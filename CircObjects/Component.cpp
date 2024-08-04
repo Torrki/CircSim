@@ -1,24 +1,25 @@
 #include "Component.h"
 #include <complex>
+#include <stdio.h>
 
 /*COMPONENT IMPLEMENTATION*/
 
-Component::Component(const char *path_symbol, int xi, int yi): SurfaceDND(xi, yi, path_symbol){
+Component::Component(const char *path_symbol, PointInt pi): SurfaceDND(pi, path_symbol){
 	this->regionBound=cairo_region_reference(this->regionBound);
 	this->surface=cairo_surface_reference(this->surface);
 }
 
-Hotpoint* Component::HotpointOver(int x, int y){
-	for(std::list<Hotpoint*>::iterator it=this->hotpoints.begin(); it != this->hotpoints.end(); it++){
-		if((*it)->HotpointOn(x, y)) return *it;
+Hotpoint* Component::HotpointOver(PointInt p){
+	for(list<Hotpoint*>::iterator it=this->hotpoints.begin(); it != this->hotpoints.end(); it++){
+		if((*it)->PointerOn(p)) return *it;
 	}
 	return NULL;
 }
 
-void Component::Drag(int x, int y){
+void Component::Drag(PointInt p){
 	int dx, dy;
-	SurfaceDND::Drag(x,y, &dx, &dy);
-	for(std::list<Hotpoint*>::iterator it=this->hotpoints.begin(); it != this->hotpoints.end(); it++){
+	SurfaceDND::Drag(p, &dx, &dy);
+	for(list<Hotpoint*>::iterator it=this->hotpoints.begin(); it != this->hotpoints.end(); it++){
 		cairo_region_translate((*it)->GetRegion(), dx, dy);
 		(*it)->x += dx;
 		(*it)->y += dy;
@@ -26,12 +27,10 @@ void Component::Drag(int x, int y){
 }
 
 Component::~Component(){
-	while(!this->hotpoints.empty()){
-		Hotpoint* hp=this->hotpoints.back();
-		this->hotpoints.pop_back();
-		delete hp;
+	for(list<Hotpoint*>::iterator it=this->hotpoints.begin(); it != this->hotpoints.end(); it++){
+		this->hotpoints.erase(it);
+		delete *it;
 	}
-	
 	this->~SurfaceDND();
 }
 
@@ -48,15 +47,15 @@ void Component::Rotate(double ang){
 		double rotazioneEffettiva=ang - nGiri*2.0*M_PI;
 		
 		//Spostamento Hotpoint
-		for(std::list<Hotpoint*>::iterator it=this->hotpoints.begin(); it != this->hotpoints.end(); it++){
+		for(list<Hotpoint*>::iterator it=this->hotpoints.begin(); it != this->hotpoints.end(); it++){
 			int Xr=(*it)->x;
 			int Yr=(*it)->y;
 			int x_1=Xr-this->drawPoint->x;
 			int y_1=Yr-this->drawPoint->y;
 			
-			std::complex<double> c((double)x_1, (double)y_1);	//tramite i complessi lavoro sulle fasi per semplificare codice e calcoli
-			std::complex<double> res=c*std::polar(1.0, ang);
-			std::complex<double> diff=res-c;
+			complex<double> c((double)x_1, (double)y_1);	//tramite i complessi lavoro sulle fasi per semplificare codice e calcoli
+			complex<double> res=c*std::polar(1.0, ang);
+			complex<double> diff=res-c;
 			int dx=(int)diff.real();
 			int dy=(int)diff.imag();
 			
@@ -81,58 +80,76 @@ void Component::Rotate(double ang){
 	}
 }
 
-/*RESISTOR-CAPACITOR-INDUCTOR*/
-
 /*CONNECTION IMPLEMENTATION*/
 
 void Connection::Draw(cairo_t *cr){
-	for(std::list<Line*>::iterator it=this->path.begin(); it != this->path.end(); it++){
+	for(list<Line*>::iterator it=this->path.begin(); it != this->path.end(); it++){
 		(*it)->Draw(cr);
 	}
 }
 
-Line* Connection::PointerOn(int x, int y){
-	for(std::list<Line*>::iterator it=this->path.begin(); it != this->path.end(); it++){
-		if((*it)->PointerOn(x, y)) return *it;
+Line* Connection::LineOn(PointInt p){
+	for(list<Line*>::iterator it=this->path.begin(); it != this->path.end(); it++){
+		if((*it)->PointerOn(p)) return *it;
 	}
 	return NULL;
 }
 
-void Connection::AddLine(Line* l, bool front){
-	if(front){
-		this->path.push_front(l);
-	}else{
-		this->path.push_back(l);
+Connection::Connection(Component* sc, Hotpoint *sp){
+	this->start.first=sc;
+	this->start.second=sp;
+	this->end.first=NULL;
+	this->end.second=NULL;
+}
+
+Connection::~Connection(){
+	while(!this->path.empty()){
+		Line *l=this->path.back();
+		if(l->GetEnd() != this->end.second)
+			delete l->GetEnd();
+			
+		this->path.pop_back();
+		delete l;
 	}
 }
 
-Line* Connection::PopLine(bool front){
+/*BUILDER CONNECTION IMPLEMENTATION*/
+
+void ConnectionBuilder::AddLine(Line* l, bool front){
+	if(front){
+		this->c->path.push_front(l);
+	}else{
+		this->c->path.push_back(l);
+	}
+}
+
+Line* ConnectionBuilder::PopLine(bool front){
 	Line* l;
 	if(front){
-		l=this->path.front();
-		this->path.pop_front();
+		l=this->c->path.front();
+		this->c->path.pop_front();
 	}else{
-		l=this->path.back();
-		this->path.pop_back();
+		l=this->c->path.back();
+		this->c->path.pop_back();
 	}
 	return l;
 }
 
-void Connection::EndConnection(Component* e, Hotpoint* hp){	
-	this->endComp=e;
-	this->end=hp;
+void ConnectionBuilder::EndConnection(Component* e, Hotpoint* hp){	
+	this->c->end.first=e;
+	this->c->end.second=hp;
 	
 	PointInt *middlePoint=new PointInt();
 	PointInt *endPoint=static_cast<PointInt*>(hp);
 	PointInt *startPoint;
 	int direzione;
-	if(!this->path.empty()){
-		Line* lastLine=this->path.back();
+	if(!this->c->path.empty()){
+		Line* lastLine=this->c->path.back();
 		startPoint=lastLine->GetEnd();
 		direzione=lastLine->GetDirection();
 	}else{
-		startPoint=static_cast<PointInt*>(this->start);
-		direzione=this->start->GetDirection();
+		startPoint=static_cast<PointInt*>(this->c->start.second);
+		direzione=this->c->start.second->GetDirection();
 	}
 	switch(direzione){
 	case DIR_UP :
@@ -164,39 +181,39 @@ void Connection::EndConnection(Component* e, Hotpoint* hp){
 	this->AddLine( new Line(middlePoint, endPoint), false );
 }
 
-void Connection::AppendPoint(PointInt *p){
+void ConnectionBuilder::AppendPoint(PointInt *p){
 	PointInt *middlePoint=new PointInt();
 	PointInt *endPoint=p;
 	PointInt *startPoint;
 	int direzione;
-	if(!this->path.empty()){
-		Line* lastLine=this->path.back();
+	if(!this->c->path.empty()){
+		Line* lastLine=this->c->path.back();
 		startPoint=lastLine->GetEnd();
 		direzione=lastLine->GetDirection();
 	}else{
-		startPoint=static_cast<PointInt*>(this->start);
-		direzione=this->start->GetDirection();
+		startPoint=static_cast<PointInt*>(this->c->start.second);
+		direzione=this->c->start.second->GetDirection();
 	}
 	switch(direzione){
 	case DIR_UP:
 		middlePoint->x=startPoint->x;
-		middlePoint->y=std::min( p->y, startPoint->y );
-		endPoint->y=std::min( p->y, startPoint->y );
+		middlePoint->y=min( p->y, startPoint->y );
+		endPoint->y=min( p->y, startPoint->y );
 		break;
 	case DIR_DOWN:
 		middlePoint->x=startPoint->x;
-		middlePoint->y=std::max( p->y, startPoint->y );
-		endPoint->y=std::max( p->y, startPoint->y );
+		middlePoint->y=max( p->y, startPoint->y );
+		endPoint->y=max( p->y, startPoint->y );
 		break;
 	case DIR_LEFT:
-		middlePoint->x=std::min( p->x, startPoint->x );
+		middlePoint->x=min( p->x, startPoint->x );
 		middlePoint->y=startPoint->y;
-		endPoint->x=std::min( p->x, startPoint->x );
+		endPoint->x=min( p->x, startPoint->x );
 		break;
 	case DIR_RIGHT:
-		middlePoint->x=std::max( p->x, startPoint->x );
+		middlePoint->x=max( p->x, startPoint->x );
 		middlePoint->y=startPoint->y;
-		endPoint->x=std::max( p->x, startPoint->x );
+		endPoint->x=max( p->x, startPoint->x );
 		break;
 	case DIR_UP | DIR_DOWN:
 		middlePoint->x=startPoint->x;
@@ -213,14 +230,27 @@ void Connection::AppendPoint(PointInt *p){
 	this->AddLine( new Line(middlePoint, endPoint), false );
 }
 
-Connection::~Connection(){
-	while(!this->path.empty()){
-		Line *l=this->path.back();
-		if(l->GetEnd() != this->end)
-			delete l->GetEnd();
-			
-		this->path.pop_back();
-		delete l;
+void ConnectionBuilder::ClearConnection(){
+	if(this->c){
+		delete this->c;
+		this->c=NULL;
 	}
+}
+
+void ConnectionBuilder::NewConnection(Component* sc, Hotpoint *sp){
+	if(this->c && ! this->c->end.second){
+		delete this->c;
+	}
+	this->c = new Connection(sc, sp);
+}
+
+void ConnectionBuilder::SetEnd(Component* ec, Hotpoint *ep){
+	this->c->end.first=ec;
+	this->c->end.second=ep;	
+}
+
+void ConnectionBuilder::SetStart(Component* sc, Hotpoint *sp){
+	this->c->start.first=sc;
+	this->c->start.second=sp;	
 }
 
