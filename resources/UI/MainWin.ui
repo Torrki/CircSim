@@ -44,16 +44,6 @@
 							</object>
 						</child>
 						<child>
-							<object class="GtkButton" id="HotpointButton">
-								<property name="height-request">60</property>
-								<property name="child">
-									<object class="GtkImage">
-										<property name="file">./Componenti/hotpoint_icon.png</property>
-									</object>
-								</property>
-							</object>
-						</child>
-						<child>
 							<object class="GtkButton" id="CurrentSourceButton">
 								<property name="height-request">60</property>
 								<property name="child">

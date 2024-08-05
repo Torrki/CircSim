@@ -34,7 +34,8 @@ GND::GND(PointInt pi):Component("./Componenti/GND/imgs/GND.png", pi){
 		}else if(dir.find("D") != string::npos){
 			direzione=DIR_DOWN;
 		}
-		Hotpoint* hotp=new Hotpoint( (float)pi.x+((float)w*xf), (float)pi.y+((float)h*yf ), HOTPOINT_EDGE, direzione);
+		PointInt pHp={.x=(int)( (float)pi.x+((float)w*xf) ), .y=(int)( (float)pi.y+((float)h*yf) )};
+		Hotpoint* hotp=new Hotpoint(pHp, HOTPOINT_EDGE, direzione);
 		this->hotpoints.push_back( hotp );
 		cairo_region_union(this->regionBound, hotp->GetRegion() );
 	}

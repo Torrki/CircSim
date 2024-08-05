@@ -1,5 +1,6 @@
 #include <list>
 #include <typeinfo>
+#include <complex>
 #include "Componenti/BaseComp.h"
 #include "Circuit.h"
 #include "App.h"
@@ -24,7 +25,6 @@ void DrawSheet(GtkDrawingArea* self, cairo_t *cr, int width, int height, gpointe
 void RButton_clicked(GtkButton* self, gpointer user_data);
 void CButton_clicked(GtkButton* self, gpointer user_data);
 void LButton_clicked(GtkButton* self, gpointer user_data);
-void HPButton_clicked(GtkButton* self, gpointer user_data);
 void BatteryButton_clicked(GtkButton* self, gpointer user_data);
 void GCButton_clicked(GtkButton* self, gpointer user_data);
 void GNDButton_clicked(GtkButton* self, gpointer user_data);
@@ -49,7 +49,6 @@ void InitApp(GtkApplication *self, gpointer user_data){
 	GtkButton *RButton=GTK_BUTTON(gtk_builder_get_object(builder, "ResistorButton"));
 	GtkButton *CButton=GTK_BUTTON(gtk_builder_get_object(builder, "CapacitorButton"));
 	GtkButton *LButton=GTK_BUTTON(gtk_builder_get_object(builder, "InductorButton"));
-	GtkButton *HPButton=GTK_BUTTON(gtk_builder_get_object(builder, "HotpointButton"));
 	GtkButton *BatteryButton=GTK_BUTTON(gtk_builder_get_object(builder, "BatteryButton"));
 	GtkButton *GCButton=GTK_BUTTON(gtk_builder_get_object(builder, "CurrentSourceButton"));	
 	GtkButton *GNDButton=GTK_BUTTON(gtk_builder_get_object(builder, "GNDButton"));
@@ -57,7 +56,6 @@ void InitApp(GtkApplication *self, gpointer user_data){
 	g_signal_connect(G_OBJECT(RButton), "clicked", G_CALLBACK(RButton_clicked), NULL);
 	g_signal_connect(G_OBJECT(CButton), "clicked", G_CALLBACK(CButton_clicked), NULL);
 	g_signal_connect(G_OBJECT(LButton), "clicked", G_CALLBACK(LButton_clicked), NULL);
-	g_signal_connect(G_OBJECT(HPButton), "clicked", G_CALLBACK(HPButton_clicked), NULL);
 	g_signal_connect(G_OBJECT(BatteryButton), "clicked", G_CALLBACK(BatteryButton_clicked), NULL);
 	g_signal_connect(G_OBJECT(GCButton), "clicked", G_CALLBACK(GCButton_clicked), NULL);
 	g_signal_connect(G_OBJECT(GNDButton), "clicked", G_CALLBACK(GNDButton_clicked), NULL);
@@ -127,11 +125,6 @@ void LButton_clicked(GtkButton* self, gpointer user_data){
 	gtk_widget_queue_draw(GTK_WIDGET(AppCtx.Dwa));
 }
 
-void HPButton_clicked(GtkButton* self, gpointer user_data){
-	/*Aggiunge un hotpoint alle linee dello schema*/
-	AppCtx.DrawHotpoint=TRUE;
-}
-
 void BatteryButton_clicked(GtkButton* self, gpointer user_data){
 	/*Aggiunge una batteria allo schema*/
 	Battery *b=new Battery(*AppCtx.SpawnPosition, 5.0, 0.0);
@@ -194,7 +187,7 @@ void DwaClick(GtkGestureClick* self, gint n_press, gdouble x, gdouble y, gpointe
 						s->AddConnection(newConn);
 						newConn->GetStart().second->Disponibile=false;
 					}else{
-						int dirDelete=newConn->GetPath()->front()->GetDirection();
+						int dirDelete=newConn->GetPath().front()->GetDirection();
 						HotpointDrawable *start=static_cast<HotpointDrawable*>(newConn->GetStart().second);
 						start->AddConnection(dirDelete, newConn);
 						
@@ -226,7 +219,7 @@ void DwaClick(GtkGestureClick* self, gint n_press, gdouble x, gdouble y, gpointe
 				
 				//Aggiunta della connessione al componente
 				Connection* newConn=AppCtx.cb->GetConnection();
-				int dirDelete=newConn->GetPath()->back()->GetDirection();
+				int dirDelete=newConn->GetPath().back()->GetDirection();
 				switch(dirDelete){
 				case DIR_UP:
 					dirDelete=DIR_DOWN;
@@ -249,7 +242,7 @@ void DwaClick(GtkGestureClick* self, gint n_press, gdouble x, gdouble y, gpointe
 					s->AddConnection(newConn);
 					newConn->GetStart().second->Disponibile=false;
 				}else{
-					dirDelete=newConn->GetPath()->front()->GetDirection();
+					dirDelete=newConn->GetPath().front()->GetDirection();
 					HotpointDrawable *start=static_cast<HotpointDrawable*>(newConn->GetStart().second);
 					start->AddConnection(dirDelete, newConn);
 					
@@ -262,54 +255,118 @@ void DwaClick(GtkGestureClick* self, gint n_press, gdouble x, gdouble y, gpointe
 		}
 	}
 	
-	if(AppCtx.DrawLine){ //Punti intermedi del disegno delle nuove connessioni
-		PointInt *current= new PointInt();
-		current->x=(int)x;
-		current->y=(int)y;
-		AppCtx.cb->AppendPoint(current);
-		AppCtx.StartLine=current;
-	}else if(AppCtx.DrawHotpoint){ //Se sto piazzando un nuovo hotpoint su una linea
-		for(list<Connection*>::iterator it=AppCtx.circuito->Connessioni.begin(); it != AppCtx.circuito->Connessioni.end(); it++){
-			Line* l=(*it)->LineOn(*AppCtx.CurrentPosition);
+	if(AppCtx.DrawLine){ //Punti intermedi del disegno delle nuove connessioni		
+		//Se clicco su una connessione creo un hotpoint disegnabile
+		list<Connection*>::iterator itConnessioni=AppCtx.circuito->Connessioni.begin();
+		for(; itConnessioni != AppCtx.circuito->Connessioni.end(); ++itConnessioni){
+			Line* l=(*itConnessioni)->LineOn(*AppCtx.CurrentPosition);
 			if(l){
-				//attrazione verso la linea
+				
 				HotpointDrawable* newHD;
-				if(l->GetDirection() == DIR_UP || l->GetDirection() == DIR_DOWN)
-					newHD=new HotpointDrawable(l->GetStart()->x, y, DIR_LEFT | DIR_RIGHT);
-				else
-					newHD=new HotpointDrawable(x, l->GetStart()->y, DIR_UP | DIR_DOWN);
+				int direzioni;
+				PointInt* point;
+				//se seleziono un angolo
+				PointInt *angolo=l->EdgeOn(*AppCtx.CurrentPosition);
+				if(angolo){
+					AppCtx.cb->AppendPoint(angolo);
 					
-				//split della linea
-				PointInt* np= static_cast<PointInt*>(newHD);
-				Line *firstPart= new Line(l->GetStart(), np);
-				Line *secondPart= new Line(np, l->GetEnd());
-				
-				//creazione della nuova connessione, dalla fine fino al nuovo punto
-				AppCtx.cb->NewConnection(NULL, static_cast<Hotpoint*>(newHD));
-				ConnectionBuilder tmpBuilder;
-				pair<Component*, Hotpoint*> e=(*it)->GetEnd();
-				tmpBuilder.SetConnection(*it);
-				tmpBuilder.SetEnd(NULL, newHD);
-				AppCtx.cb->SetEnd(e.first, e.second);
-				
-				Line* tmp=tmpBuilder.PopLine(false);
-				while(tmp != l){	//passo tutte le linee nella nuova connessione
-					AppCtx.cb->AddLine(tmp, true);
-					tmp=tmpBuilder.PopLine(false);
+					//devo prendere la linea successiva per vedere quali direzioni eliminare
+					list<Line*> percorso=(*itConnessioni)->GetPath();
+					Line* successiva=NULL;
+					for(list<Line*>::iterator it_percorso=percorso.begin(); it_percorso != percorso.end(); it_percorso++){
+						if(*it_percorso == l){
+							successiva=(*(++it_percorso));
+							break;
+						}
+					}
+					switch(successiva->GetDirection()){
+					case DIR_UP:
+						direzioni=DIR_DOWN;
+						break;
+					case DIR_DOWN:
+						direzioni=DIR_UP;
+						break;
+					case DIR_LEFT:
+						direzioni=DIR_RIGHT;
+						break;
+					case DIR_RIGHT:
+						direzioni=DIR_LEFT;
+						break;
+					}
+					
+					point=angolo;
+					direzioni |= l->GetDirection();					
+				}else{
+					point=new PointInt();
+					//attrazione verso la linea
+					if(l->GetDirection() == DIR_UP || l->GetDirection() == DIR_DOWN){
+						point->x=l->GetStart()->x;
+						point->y=y;
+						direzioni=DIR_LEFT | DIR_RIGHT;
+					}else{
+						point->x=x;
+						point->y=l->GetStart()->y;
+						direzioni=DIR_UP | DIR_DOWN;
+					}
+					AppCtx.cb->AppendPoint(point);
 				}
-				AppCtx.cb->AddLine(secondPart, true);	//fine nuova connessione e rimpiazzamento con firstPart
-				tmpBuilder.AddLine(firstPart, false);
-				Connection* newConn=AppCtx.cb->GetConnection();
+				
+				//Levo la direzione dall'hotpoint
+				Connection *createdConn=AppCtx.cb->GetConnection();
+				Component* s=createdConn->GetStart().first;
+				if(s){
+					s->AddConnection(createdConn);
+					createdConn->GetStart().second->Disponibile=false;
+				}else{
+					int dirDelete=createdConn->GetPath().front()->GetDirection();
+					HotpointDrawable *start=static_cast<HotpointDrawable*>(createdConn->GetStart().second);
+					start->AddConnection(dirDelete, createdConn);
+					
+					if(start->GetDirection()==0) start->Disponibile=false;
+				}
+				
+				//Levo la direzione della connessione creata
+				switch(createdConn->GetPath().back()->GetDirection()){
+				case DIR_UP:
+					direzioni &= ~DIR_DOWN;
+					break;
+				case DIR_DOWN:
+					direzioni &= ~DIR_UP;
+					break;
+				case DIR_LEFT:
+					direzioni &= ~DIR_RIGHT;
+					break;
+				case DIR_RIGHT:
+					direzioni &= ~DIR_LEFT;
+					break;
+				}
+				
+				AppCtx.circuito->Connessioni.push_back(AppCtx.cb->GetConnection());
+				newHD=new HotpointDrawable(*point, direzioni);
+				
+				//split della linea
+				AppCtx.cb->SetConnection(*itConnessioni);
+				Connection *nc=AppCtx.cb->SplitConnection(newHD, l);
 				
 				//Aggiunta delle nuove connessioni all'hotpoint
-				newHD->AddConnection(0, *it);
-				newHD->AddConnection(0, newConn);
+				newHD->AddConnection(0, *itConnessioni);
+				newHD->AddConnection(0, nc);
 				AppCtx.circuito->HotpointLinee.push_back(newHD);
-				AppCtx.circuito->Connessioni.push_back(newConn);
+				AppCtx.circuito->Connessioni.push_back(nc);
 				
+				AppCtx.DrawLine=false;
 				gtk_widget_queue_draw(GTK_WIDGET(AppCtx.Dwa));
-				break;
+				return;
+				
 			}
+		}
+		
+		if(itConnessioni == AppCtx.circuito->Connessioni.end()){ //Se non clicco alcuna connessione
+			PointInt *current= new PointInt();
+			current->x=(int)x;
+			current->y=(int)y;
+			AppCtx.cb->AppendPoint(current);
+			AppCtx.StartLine=current;
 		}
 	}
 }
@@ -322,14 +379,15 @@ void LinePreview(cairo_t *cr){
 	PointInt middlePoint, endPoint;
 	int direzione;
 	Connection *currentConn=AppCtx.cb->GetConnection();
-	if(!currentConn->GetPath()->empty()){
+	if(!currentConn->GetPath().empty()){
 		//Stampa delle precedenti linee
 		currentConn->Draw(cr);
-		direzione=currentConn->GetPath()->back()->GetDirection();
+		direzione=currentConn->GetPath().back()->GetDirection();
 	}else{
 		Hotpoint* hp=static_cast<Hotpoint*>(AppCtx.StartLine);
 		direzione=hp->GetDirection();
 	}
+
 	switch(direzione){
 	case DIR_UP:
 		middlePoint={.x=AppCtx.StartLine->x, .y=min( AppCtx.CurrentPosition->y, AppCtx.StartLine->y )};
@@ -356,7 +414,6 @@ void LinePreview(cairo_t *cr){
 		endPoint={.x=AppCtx.CurrentPosition->x, .y=AppCtx.CurrentPosition->y};
 		break;
 	}
-			
 	double cx, cy;
 	cairo_get_current_point(cr, &cx, &cy);
 	if(( (int)cx != AppCtx.StartLine->x ) || ( (int)cy != AppCtx.StartLine->y ))
@@ -368,7 +425,7 @@ void LinePreview(cairo_t *cr){
 
 gboolean DwaKeyPressed(GtkEventControllerKey *self, guint keyval, guint keycode, GdkModifierType state, gpointer user_data){
 	gboolean ret;
-	printf("%d\n", keycode);
+	//printf("%d\n", keycode);
 	switch(keycode){
 	case 9:		//ESC
 		AppCtx.LastSelected=NULL;

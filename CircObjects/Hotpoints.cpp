@@ -3,12 +3,12 @@
 
 /*HOTPOINT IMPLEMENTATION*/
 
-Hotpoint::Hotpoint(int x, int y, int dim_bound, int dir){
-	this->x=x;
-	this->y=y;
+Hotpoint::Hotpoint(PointInt p, int dim_bound, int dir){
+	this->x=p.x;
+	this->y=p.y;
 	this->direzione=dir;
 	this->Disponibile=true;
-	cairo_rectangle_int_t rect={.x=x-(dim_bound/2), .y=y-(dim_bound/2), .width=dim_bound, .height=dim_bound};
+	cairo_rectangle_int_t rect={.x=p.x-(dim_bound/2), .y=p.y-(dim_bound/2), .width=dim_bound, .height=dim_bound};
 	this->region=cairo_region_create_rectangle(&rect);
 	this->region=cairo_region_reference(this->region);
 }
@@ -33,10 +33,6 @@ bool Hotpoint::PointerOn(PointInt p){
 }
 
 /*HOTPOINT_DRAWABLE IMPLEMENTATION*/
-
-HotpointDrawable::HotpointDrawable(int x, int y, int dirs): Hotpoint(x, y, HOTPOINT_RADIUS*2, dirs){
-	
-}
 
 void HotpointDrawable::Draw(cairo_t *cr){
 	cairo_move_to(cr, this->x, this->y);

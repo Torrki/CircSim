@@ -30,10 +30,9 @@ public:
 	Line* PopLine(bool front);
 	void AppendPoint(PointInt *p);
 	void EndConnection(Component* e, Hotpoint* hp);
+	Connection* SplitConnection(Hotpoint* p, Line* l);
 	
 	void SetConnection(Connection* c){this->c=c;};
-	void SetEnd(Component* ec, Hotpoint *ep);
-	void SetStart(Component* sc, Hotpoint *sp);
 	Connection* GetConnection() const {return this->c;};
 };
 
@@ -46,7 +45,7 @@ public:
 	~Connection();
 	pair<Component*, Hotpoint*> GetStart() const {return this->start;};
 	pair<Component*, Hotpoint*> GetEnd() const {return this->end;};
-	const std::list<Line*>* GetPath() const {return &(this->path);};
+	const list<Line*> GetPath() const {return this->path;};
 	void Draw(cairo_t* cr);
 	Line* LineOn(PointInt p);
 	
@@ -55,8 +54,7 @@ public:
 	friend Line* 	ConnectionBuilder::PopLine(bool front);
 	friend void 	ConnectionBuilder::AppendPoint(PointInt *p);
 	friend void 	ConnectionBuilder::EndConnection(Component* e, Hotpoint* hp);
-	friend void 	ConnectionBuilder::SetEnd(Component* sc, Hotpoint *sp);
-	friend void 	ConnectionBuilder::SetStart(Component* sc, Hotpoint *sp);
+	friend Connection* ConnectionBuilder::SplitConnection(Hotpoint* p, Line* l);
 	
 };
 

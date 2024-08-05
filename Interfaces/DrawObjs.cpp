@@ -1,5 +1,6 @@
 #include <cmath>
 #include "DrawObjs.h"
+#include <stdio.h>
 
 /*SURFACE DRAWABLE IMPLEMENTATION*/
 
@@ -116,22 +117,33 @@ SurfaceDND::~SurfaceDND(){
 
 /*LINE IMPLEMENTATION*/
 
-Line::Line(PointInt* start, PointInt* end){
-	this->start=start;
-	this->end=end;
-	cairo_rectangle_int_t rect;
-	
-	if(start->x==end->x){
-		rect={.x=start->x, .y=std::min(start->y, end->y), .width=LINE_STROKE, .height=std::abs(end->y-start->y)};
-		if(end->y > start->y) this->dir=DIR_DOWN;
-		else this->dir=DIR_UP;
-	}else if(start->y==end->y){
-		rect={.x=std::min(start->x, end->x), .y=start->y, .width=std::abs(end->x-start->x), .height=LINE_STROKE};
-		if(end->x > start->x) this->dir=DIR_RIGHT;
-		else this->dir=DIR_LEFT;
+Line::Line(PointInt* start, PointInt* end){	
+	if(! (start->x == end->x && start->y == end->y) )
+	{
+		this->start=start;
+		this->end=end;
+		cairo_rectangle_int_t rect;
+		if(start->x==end->x){
+			rect={.x=start->x, .y=std::min(start->y, end->y), .width=LINE_STROKE, .height=std::abs(end->y-start->y)};
+			if(end->y > start->y) this->dir=DIR_DOWN;
+			else this->dir=DIR_UP;
+		}else if(start->y==end->y){
+			rect={.x=std::min(start->x, end->x), .y=start->y, .width=std::abs(end->x-start->x), .height=LINE_STROKE};
+			if(end->x > start->x) this->dir=DIR_RIGHT;
+			else this->dir=DIR_LEFT;
+		}
+		//TODO: else che genera una eccezione
+		this->region=cairo_region_create_rectangle(&rect);
+		rect={.x=start->x-5, .y=start->y-5, .width=10, .height=10};
+		this->edgeRegionStart=cairo_region_create_rectangle(&rect);
+		rect={.x=end->x-5, .y=end->y-5, .width=10, .height=10};
+		this->edgeRegionEnd=cairo_region_create_rectangle(&rect);
+		
+		cairo_region_union(this->region, this->edgeRegionStart);
+		cairo_region_union(this->region, this->edgeRegionEnd);
+	}else{
+		this->region=NULL;
 	}
-	//TODO: else che genera una eccezione
-	this->region=cairo_region_create_rectangle(&rect);
 }
 
 void Line::Draw(cairo_t *cr){
@@ -143,6 +155,15 @@ void Line::Draw(cairo_t *cr){
 		cairo_move_to(cr, this->start->x, this->start->y);
 	}
 	cairo_line_to(cr, this->end->x, this->end->y);
+}
+
+PointInt* Line::EdgeOn(PointInt p){
+	if( cairo_region_contains_point(this->edgeRegionStart, p.x, p.y) )
+		return this->start;
+	else if( cairo_region_contains_point(this->edgeRegionEnd, p.x, p.y) )
+		return this->end;
+	else
+		return NULL;
 }
 
 Line::~Line(){

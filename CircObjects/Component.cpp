@@ -244,13 +244,32 @@ void ConnectionBuilder::NewConnection(Component* sc, Hotpoint *sp){
 	this->c = new Connection(sc, sp);
 }
 
-void ConnectionBuilder::SetEnd(Component* ec, Hotpoint *ep){
-	this->c->end.first=ec;
-	this->c->end.second=ep;	
-}
-
-void ConnectionBuilder::SetStart(Component* sc, Hotpoint *sp){
-	this->c->start.first=sc;
-	this->c->start.second=sp;	
+Connection* ConnectionBuilder::SplitConnection(Hotpoint* p, Line* l){
+	PointInt* np= static_cast<PointInt*>(p);
+	Line *firstPart= new Line(l->GetStart(), np);
+	Line *secondPart= new Line(np, l->GetEnd());
+	
+	//creazione della nuova connessione, dalla fine fino al nuovo punto
+	Connection* newConn= new Connection(NULL, p);
+	newConn->end.first=this->c->end.first;
+	newConn->end.second=this->c->end.second;
+	this->c->end.first=NULL;
+	this->c->end.second=p;
+	
+	Line* tmp=this->c->path.back();
+	this->c->path.pop_back();
+	while(tmp != l){	//passo tutte le linee nella nuova connessione
+		newConn->path.push_front(tmp);
+		tmp=this->c->path.back();
+		this->c->path.pop_back();
+	}
+	if(firstPart->Empty() || secondPart->Empty()){	//split su un angolo
+		this->c->path.push_back(l);	//reinsersco l
+	}else{
+		newConn->path.push_front(secondPart);	//fine nuova connessione e rimpiazzamento con firstPart
+		this->c->path.push_back(firstPart);
+	}
+	
+	return newConn;
 }
 

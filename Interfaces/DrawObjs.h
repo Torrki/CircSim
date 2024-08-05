@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include "IDrawable.h"
 #include "IDragable.h"
 #include "ISelectable.h"
@@ -10,6 +11,7 @@ enum Direction{DIR_UP=1, DIR_RIGHT=2, DIR_DOWN=4, DIR_LEFT=8};
 
 class Line: public IDrawable, public ISelectable{
 	cairo_region_t *region;
+	cairo_region_t *edgeRegionStart, *edgeRegionEnd;
 	PointInt *start, *end;
 	int dir;
 public:
@@ -19,6 +21,8 @@ public:
 	PointInt* GetStart() const {return this->start;};
 	PointInt* GetEnd() const {return this->end;};
 	bool PointerOn(PointInt p){ return (bool)cairo_region_contains_point(this->region, p.x, p.y); };
+	PointInt* EdgeOn(PointInt p);
+	bool Empty(){return this->region==NULL;};
 	void Draw(cairo_t *cr);
 };
 

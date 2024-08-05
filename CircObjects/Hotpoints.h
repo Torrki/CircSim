@@ -22,7 +22,7 @@ public:
 	float Poternziale;
 	bool Disponibile;
 	
-	Hotpoint(int x, int y, int dim_bound, int dir);
+	Hotpoint(PointInt p, int dim_bound, int dir);
 	~Hotpoint();
 	cairo_region_t* GetRegion() const {return this->region;};
 	int GetDirection(){return this->direzione;};
@@ -33,7 +33,7 @@ public:
 class HotpointDrawable: public Hotpoint , public IDrawable , public IDragable{
 	list<Connection*> connections;
 public:
-	HotpointDrawable(int x, int y, int dirs);
+	HotpointDrawable(PointInt p, int dirs): Hotpoint(p, HOTPOINT_RADIUS*2, dirs){};
 	~HotpointDrawable(){this->~Hotpoint();};
 	void Draw(cairo_t *cr);
 	void Drag(PointInt p, int *dx, int *dy);
